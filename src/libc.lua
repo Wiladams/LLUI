@@ -10,9 +10,14 @@ local lshift, rshift = bit.lshift, bit.rshift
 ffi.cdef[[
 typedef uint32_t __useconds_t;
 typedef __useconds_t useconds_t;
+typedef long suseconds_t;
 typedef long time_t;
+
 typedef int64_t off_t;
 typedef uint16_t      mode_t;
+
+
+struct timeval { time_t tv_sec; suseconds_t tv_usec; };
 ]]
 
 -- ioctl related
@@ -56,17 +61,25 @@ int ioctl (int, int, ...);
 	Memory Management
 --]]
 ffi.cdef[[
-	void free(void *);
-	void * malloc(const size_t size);
+void *calloc(size_t nitems, size_t size);
+void free(void *);
+void * malloc(const size_t size);
 
-	void *memcpy (void *__dest, const void * __src, size_t __n) ;
-	void *memset (void *__s, int __c, size_t __n) ;
+void *memcpy (void *__dest, const void * __src, size_t __n) ;
+void *memset (void *__s, int __c, size_t __n) ;
 	
-	void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
-	int munmap (void *, size_t);
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+int munmap (void *, size_t);
 
-	int mprotect (void *, size_t, int);
-	int msync (void *, size_t, int);
+int mprotect (void *, size_t, int);
+int msync (void *, size_t, int);
+]]
+
+-- StringZ
+--
+ffi.cdef[[
+char *strcpy(char *dest, const char *src);
+size_t strlen(const char *);
 ]]
 
 --[[
@@ -88,6 +101,8 @@ typedef struct _IO_FILE FILE;
 
 FILE *fopen(const char *__restrict, const char *__restrict);
 int fclose(FILE *);
+int ferror(FILE *stream);
+int fflush(FILE *stream);
 
 int fprintf(FILE *__restrict, const char *__restrict, ...);
 size_t fread(void *__restrict, size_t, size_t, FILE *__restrict);
@@ -196,10 +211,11 @@ end
 local exports = {
 
 	-- fcntl
-	O_RDONLY	= octal(00000000);
-	O_WRONLY	= octal(00000001);
-	O_RDWR		= octal(00000002);
-	O_CLOEXEC	= octal(02000000);	-- set close_on_exec
+	O_RDONLY	= octal('00000000');
+	O_WRONLY	= octal('00000001');
+	O_RDWR		= octal('00000002');
+	O_NONBLOCK	= octal('00004000');
+	O_CLOEXEC	= octal('02000000');	-- set close_on_exec
 
 	-- ioctl
 	ioctl = ffi.C.ioctl;
@@ -233,6 +249,7 @@ local exports = {
 	printf = printf;
 	strerror = strerror;
 	stringvalue = stringvalue;
+	safeffistring = stringvalue;
 
 	-- Memory Management
 	free = ffi.C.free;
@@ -269,6 +286,11 @@ setmetatable(exports, {
 		for k,v in pairs(self) do
 			tbl[k] = v;
 		end;
+
+		for k,v in pairs(errnos) do
+			tbl[k] =  v;
+		end
+
 		return self;
 	end,
 })
