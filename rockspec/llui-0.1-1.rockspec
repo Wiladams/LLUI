@@ -1,8 +1,8 @@
  package = "LLUI"
  version = "0.1-1"
  source = {
-    url = "http://github.com/wiladams/LLUI",
-    tag = "v0.1-1",
+    url = "https://github.com/wiladams/LLUI/archive/v0.1-1.tar.gz",
+    dir = "LLUI-0.1-1",
  }
  description = {
     summary = "Lua Linux User Interface",
@@ -50,7 +50,7 @@
       ["LLUI.evdev"] = "src/evdev.lua",
       ["LLUI.evdev_ffi"] = "src/evdev_ffi.lua",
       ["LLUI.linux_input"] = "src/linux_input.lua",
-      ["LLUI.uinput"] = "src/uinput.lua"
+      ["LLUI.uinput"] = "src/uinput.lua",
 
       -- libudev
       ["LLUI.UDVContext"] = "src/UDVContext.lua",
@@ -70,12 +70,7 @@
       -- pixman
       ["LLUI.pixman"] = "src/pixman.lua",
       ["LLUI.pixman_ffi"] = "src/pixman_ffi.lua",
-      
+
     },
 
-    platforms = {
-      linux = {
-
-      },
-    },
  }
