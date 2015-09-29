@@ -20,3 +20,21 @@ There is also partial support for
 And thrown in for ease of programming
 * fun - functional programming module
 * kernel - lightweight cooperative multi-tasking
+
+A note on the rockspec
+By default, if you do 
+```bash
+$ sudo luarocks install llui-0.1-1.rockspec
+```
+
+The files will likely end up in /usr/local/share/lua/5.1/LLUI
+but, it depends on how you've configured things.
+
+Now, within your code, you should be able to simply do:
+
+```lua
+local libc = require("LLUI.libc")
+local pixman = require("LLUI.pixman")
+```
+
+To get at the various modules you want.
