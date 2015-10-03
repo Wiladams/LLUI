@@ -11,6 +11,18 @@ local function octal(val)
 	return tonumber(val,8);
 end
 
+-- reverse dictionary lookup
+-- given a value, return the key or nil
+local function getNameOfValue(value, tbl)
+	for k,v in pairs(tbl) do
+		if v == value 
+			then return k
+		end
+	end
+
+	return string.format("UNKNOWN VALUE: %d", value);
+end 
+
 
 -- useful types
 ffi.cdef[[
@@ -329,17 +341,7 @@ local errnos = {
 	
 }
 
--- reverse dictionary lookup
--- given a value, return the key or nil
-local function getNameOfValue(value, tbl)
-	for k,v in pairs(tbl) do
-		if v == value 
-			then return k
-		end
-	end
 
-	return string.format("UNKNOWN VALUE: %d", value);
-end 
 
 local function strerror(num)
 	num = num or ffi.errno();
@@ -389,7 +391,8 @@ local exports = {
 	strerror = strerror;
 	stringvalue = stringvalue;
 	safeffistring = stringvalue;
-
+	getValueName = getNameOfValue;
+	
 	-- Memory Management
 	free = ffi.C.free;
 	malloc = ffi.C.malloc;
