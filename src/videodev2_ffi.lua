@@ -1,6 +1,7 @@
 local ffi = require("ffi")
 
 require("v4l2_controls")
+local libc = require("libc")
 
 
 ffi.cdef[[
@@ -16,17 +17,6 @@ struct v4l2_fract {
 	__u32   denominator;
 };
 
-/**
-  * struct v4l2_capability - Describes V4L2 device caps returned by VIDIOC_QUERYCAP
-  *
-  * @driver:	   name of the driver module (e.g. "bttv")
-  * @card:	   name of the card (e.g. "Hauppauge WinTV")
-  * @bus_info:	   name of the bus (e.g. "PCI:" + pci_name(pci_dev) )
-  * @version:	   KERNEL_VERSION
-  * @capabilities: capabilities of the physical device as a whole
-  * @device_caps:  capabilities accessed via this particular device (node)
-  * @reserved:	   reserved fields for future extensions
-  */
 struct v4l2_capability {
 	__u8	driver[16];
 	__u8	card[32];
@@ -45,12 +35,12 @@ ffi.cdef[[
  *	V I D E O   I M A G E   F O R M A T
  */
 struct v4l2_pix_format {
-	__u32         		width;
+	__u32         	width;
 	__u32			height;
 	__u32			pixelformat;
 	__u32			field;		/* enum v4l2_field */
-	__u32            	bytesperline;	/* for padding, zero if unused */
-	__u32          		sizeimage;
+	__u32           bytesperline;	/* for padding, zero if unused */
+	__u32          	sizeimage;
 	__u32			colorspace;	/* enum v4l2_colorspace */
 	__u32			priv;		/* private data, depends on pixelformat */
 };
@@ -63,7 +53,7 @@ ffi.cdef[[
 struct v4l2_fmtdesc {
 	__u32		    index;             /* Format number      */
 	__u32		    type;              /* enum v4l2_buf_type */
-	__u32               flags;
+	__u32           flags;
 	__u8		    description[32];   /* Description string */
 	__u32		    pixelformat;       /* Format fourcc      */
 	__u32		    reserved[4];
@@ -221,26 +211,7 @@ struct v4l2_requestbuffers {
 ]]
 
 ffi.cdef[[
-/**
- * struct v4l2_plane - plane info for multi-planar buffers
- * @bytesused:		number of bytes occupied by data in the plane (payload)
- * @length:		size of this plane (NOT the payload) in bytes
- * @mem_offset:		when memory in the associated struct v4l2_buffer is
- *			V4L2_MEMORY_MMAP, equals the offset from the start of
- *			the device memory for this plane (or is a "cookie" that
- *			should be passed to mmap() called on the video node)
- * @userptr:		when memory is V4L2_MEMORY_USERPTR, a userspace pointer
- *			pointing to this plane
- * @fd:			when memory is V4L2_MEMORY_DMABUF, a userspace file
- *			descriptor associated with this plane
- * @data_offset:	offset in the plane to the start of data; usually 0,
- *			unless there is a header in front of the data
- *
- * Multi-planar buffers consist of one or more planes, e.g. an YCbCr buffer
- * with two planes can have one plane for Y, and another for interleaved CbCr
- * components. Each plane can reside in a separate memory buffer, or even in
- * a completely separate memory node (e.g. in embedded devices).
- */
+
 struct v4l2_plane {
 	__u32			bytesused;
 	__u32			length;
@@ -255,37 +226,7 @@ struct v4l2_plane {
 ]]
 
 ffi.cdef[[
-/**
- * struct v4l2_buffer - video buffer info
- * @index:	id number of the buffer
- * @type:	enum v4l2_buf_type; buffer type (type == *_MPLANE for
- *		multiplanar buffers);
- * @bytesused:	number of bytes occupied by data in the buffer (payload);
- *		unused (set to 0) for multiplanar buffers
- * @flags:	buffer informational flags
- * @field:	enum v4l2_field; field order of the image in the buffer
- * @timestamp:	frame timestamp
- * @timecode:	frame timecode
- * @sequence:	sequence count of this frame
- * @memory:	enum v4l2_memory; the method, in which the actual video data is
- *		passed
- * @offset:	for non-multiplanar buffers with memory == V4L2_MEMORY_MMAP;
- *		offset from the start of the device memory for this plane,
- *		(or a "cookie" that should be passed to mmap() as offset)
- * @userptr:	for non-multiplanar buffers with memory == V4L2_MEMORY_USERPTR;
- *		a userspace pointer pointing to this buffer
- * @fd:		for non-multiplanar buffers with memory == V4L2_MEMORY_DMABUF;
- *		a userspace file descriptor associated with this buffer
- * @planes:	for multiplanar buffers; userspace pointer to the array of plane
- *		info structs for this buffer
- * @length:	size in bytes of the buffer (NOT its payload) for single-plane
- *		buffers (when type != *_MPLANE); number of elements in the
- *		planes array for multi-plane buffers
- * @input:	input number from which the video data has has been captured
- *
- * Contains data exchanged by application and driver using one of the Streaming
- * I/O methods.
- */
+
 struct v4l2_buffer {
 	__u32			index;
 	__u32			type;
@@ -333,24 +274,7 @@ struct v4l2_buffer {
 
 
 ffi.cdef[[
-/**
- * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
- *
- * @index:	id number of the buffer
- * @type:	enum v4l2_buf_type; buffer type (type == *_MPLANE for
- *		multiplanar buffers);
- * @plane:	index of the plane to be exported, 0 for single plane queues
- * @flags:	flags for newly created file, currently only O_CLOEXEC is
- *		supported, refer to manual of open syscall for more details
- * @fd:		file descriptor associated with DMABUF (set by driver)
- *
- * Contains data used for exporting a video buffer as DMABUF file descriptor.
- * The buffer is identified by a 'cookie' returned by VIDIOC_QUERYBUF
- * (identical to the cookie used to mmap() the buffer to userspace). All
- * reserved fields must be set to zero. The field reserved0 is expected to
- * become a structure 'type' allowing an alternative layout of the structure
- * content. Therefore this field should not be used for any other extensions.
- */
+
 struct v4l2_exportbuffer {
 	__u32		type; /* enum v4l2_buf_type */
 	__u32		index;
@@ -362,9 +286,7 @@ struct v4l2_exportbuffer {
 ]]
 
 ffi.cdef[[
-/*
- *	O V E R L A Y   P R E V I E W
- */
+\
 struct v4l2_framebuffer {
 	__u32			capability;
 	__u32			flags;
@@ -459,19 +381,6 @@ struct v4l2_crop {
 	struct v4l2_rect        c;
 };
 
-/**
- * struct v4l2_selection - selection info
- * @type:	buffer type (do not use *_MPLANE types)
- * @target:	Selection target, used to choose one of possible rectangles;
- *		defined in v4l2-common.h; V4L2_SEL_TGT_* .
- * @flags:	constraints flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
- * @r:		coordinates of selection window
- * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
- *
- * Hardware may use multiple helper windows to process a video stream.
- * The structure is used to exchange this selection areas between
- * an application and a driver.
- */
 struct v4l2_selection {
 	__u32			type;
 	__u32			target;
@@ -482,56 +391,48 @@ struct v4l2_selection {
 ]]
 
 
-
+--[[
 /*
  *      A N A L O G   V I D E O   S T A N D A R D
  */
+--]]
 
-typedef __u64 v4l2_std_id;
-local function v42l_std_id(x) return tonumber(x) end
+--typedef __u64 v4l2_std_id;
+--local function v42l_std_id(x) return tonumber(x) end
+-- WAA - these constants should move into videodev2.lua
+-- one bit for each */
+	V4L2_STD_PAL_B           = 0x00000001;
+	V4L2_STD_PAL_B1          = 0x00000002;
+	V4L2_STD_PAL_G           = 0x00000004;
+	V4L2_STD_PAL_H           = 0x00000008;
+	V4L2_STD_PAL_I           = 0x00000010;
+	V4L2_STD_PAL_D           = 0x00000020;
+	V4L2_STD_PAL_D1          = 0x00000040;
+	V4L2_STD_PAL_K           = 0x00000080;
 
-/* one bit for each */
-#define V4L2_STD_PAL_B           = 0x00000001;
-#define V4L2_STD_PAL_B1          = 0x00000002;
-#define V4L2_STD_PAL_G           = 0x00000004;
-#define V4L2_STD_PAL_H           = 0x00000008;
-#define V4L2_STD_PAL_I           = 0x00000010;
-#define V4L2_STD_PAL_D           = 0x00000020;
-#define V4L2_STD_PAL_D1          = 0x00000040;
-#define V4L2_STD_PAL_K           = 0x00000080;
+	V4L2_STD_PAL_M           = 0x00000100;
+	V4L2_STD_PAL_N           = 0x00000200;
+	V4L2_STD_PAL_Nc          = 0x00000400;
+	V4L2_STD_PAL_60          = 0x00000800;
 
-#define V4L2_STD_PAL_M           = 0x00000100;
-#define V4L2_STD_PAL_N           = 0x00000200;
-#define V4L2_STD_PAL_Nc          = 0x00000400;
-#define V4L2_STD_PAL_60          = 0x00000800;
+	V4L2_STD_NTSC_M          = 0x00001000;	-- BTSC
+	V4L2_STD_NTSC_M_JP       = 0x00002000;	-- EIA-J
+	V4L2_STD_NTSC_443        = 0x00004000;
+	V4L2_STD_NTSC_M_KR       = 0x00008000;	-- FM A2
 
-#define V4L2_STD_NTSC_M          = 0x00001000;	-- BTSC
-#define V4L2_STD_NTSC_M_JP       = 0x00002000;	-- EIA-J
-#define V4L2_STD_NTSC_443        = 0x00004000;
-#define V4L2_STD_NTSC_M_KR       = 0x00008000;	-- FM A2
-
-#define V4L2_STD_SECAM_B         = 0x00010000;
-#define V4L2_STD_SECAM_D         = 0x00020000;
-#define V4L2_STD_SECAM_G         = 0x00040000;
-#define V4L2_STD_SECAM_H         = 0x00080000;
-#define V4L2_STD_SECAM_K         = 0x00100000;
-#define V4L2_STD_SECAM_K1        = 0x00200000;
-#define V4L2_STD_SECAM_L         = 0x00400000;
-#define V4L2_STD_SECAM_LC        = 0x00800000;
+	V4L2_STD_SECAM_B         = 0x00010000;
+	V4L2_STD_SECAM_D         = 0x00020000;
+	V4L2_STD_SECAM_G         = 0x00040000;
+	V4L2_STD_SECAM_H         = 0x00080000;
+	V4L2_STD_SECAM_K         = 0x00100000;
+	V4L2_STD_SECAM_K1        = 0x00200000;
+	V4L2_STD_SECAM_L         = 0x00400000;
+	V4L2_STD_SECAM_LC        = 0x00800000;
 
 -- ATSC/HDTV 
-#define V4L2_STD_ATSC_8_VSB      = 0x01000000;
-#define V4L2_STD_ATSC_16_VSB     = 0x02000000;
+	V4L2_STD_ATSC_8_VSB      = 0x01000000;
+	V4L2_STD_ATSC_16_VSB     = 0x02000000;
 
---[[
- FIXME:
-   Although std_id is 64 bits, there is an issue on PPC32 architecture that
-   makes switch(__u64) to break. So, there's a hack on v4l2-common.c rounding
-   this value to 32 bits.
-   As, currently, the max value is for V4L2_STD_ATSC_16_VSB (30 bits wide),
-   it should work fine. However, if needed to add more than two standards,
-   v4l2-common.c should be fixed.
---]]
 
 
 
@@ -542,49 +443,50 @@ V4L2_STD_NTSC =          bor(V4L2_STD_NTSC_M, V4L2_STD_NTSC_M_JP, V4L2_STD_NTSC_
 V4L2_STD_SECAM_DK =     bor(V4L2_STD_SECAM_D, V4L2_STD_SECAM_K, V4L2_STD_SECAM_K1);
 
 -- All Secam Standards
-V4L2_STD_SECAM	=	(V4L2_STD_SECAM_B	|
-				 V4L2_STD_SECAM_G	|
-				 V4L2_STD_SECAM_H	|
-				 V4L2_STD_SECAM_DK	|
-				 V4L2_STD_SECAM_L       |
+V4L2_STD_SECAM	=	bor(V4L2_STD_SECAM_B,
+				 V4L2_STD_SECAM_G,
+				 V4L2_STD_SECAM_H,
+				 V4L2_STD_SECAM_DK,
+				 V4L2_STD_SECAM_L,
 				 V4L2_STD_SECAM_LC)
 
-/* PAL macros */
-#define V4L2_STD_PAL_BG		(V4L2_STD_PAL_B		|\
-				 V4L2_STD_PAL_B1	|\
+-- PAL macros 
+V4L2_STD_PAL_BG	=	bor(V4L2_STD_PAL_B,
+				 V4L2_STD_PAL_B1,
 				 V4L2_STD_PAL_G)
-#define V4L2_STD_PAL_DK		(V4L2_STD_PAL_D		|\
-				 V4L2_STD_PAL_D1	|\
+V4L2_STD_PAL_DK		bor(V4L2_STD_PAL_D,
+				 V4L2_STD_PAL_D1,
 				 V4L2_STD_PAL_K)
-/*
+--[[
  * "Common" PAL - This macro is there to be compatible with the old
  * V4L1 concept of "PAL": /BGDKHI.
  * Several PAL standards are missing here: /M, /N and /Nc
- */
-#define V4L2_STD_PAL		(V4L2_STD_PAL_BG	|\
-				 V4L2_STD_PAL_DK	|\
-				 V4L2_STD_PAL_H		|\
+--]]
+#define V4L2_STD_PAL		(V4L2_STD_PAL_BG	|
+				 V4L2_STD_PAL_DK	|
+				 V4L2_STD_PAL_H		|
 				 V4L2_STD_PAL_I)
-/* Chroma "agnostic" standards */
-#define V4L2_STD_B		(V4L2_STD_PAL_B		|\
-				 V4L2_STD_PAL_B1	|\
-				 V4L2_STD_SECAM_B)
-#define V4L2_STD_G		(V4L2_STD_PAL_G		|\
-				 V4L2_STD_SECAM_G)
-#define V4L2_STD_H		(V4L2_STD_PAL_H		|\
-				 V4L2_STD_SECAM_H)
-#define V4L2_STD_L		(V4L2_STD_SECAM_L	|\
-				 V4L2_STD_SECAM_LC)
-#define V4L2_STD_GH		(V4L2_STD_G		|\
-				 V4L2_STD_H)
-#define V4L2_STD_DK		(V4L2_STD_PAL_DK	|\
-				 V4L2_STD_SECAM_DK)
-#define V4L2_STD_BG		(V4L2_STD_B		|\
-				 V4L2_STD_G)
-#define V4L2_STD_MN		(V4L2_STD_PAL_M		|\
-				 V4L2_STD_PAL_N		|\
-				 V4L2_STD_PAL_Nc	|\
-				 V4L2_STD_NTSC)
+
+-- Chroma "agnostic" standards
+#define V4L2_STD_B		bor(V4L2_STD_PAL_B		|
+				 V4L2_STD_PAL_B1	|
+				 V4L2_STD_SECAM_B);
+#define V4L2_STD_G		bor(V4L2_STD_PAL_G		|
+				 V4L2_STD_SECAM_G);
+#define V4L2_STD_H		bor(V4L2_STD_PAL_H		|
+				 V4L2_STD_SECAM_H);
+#define V4L2_STD_L		bor(V4L2_STD_SECAM_L	|
+				 V4L2_STD_SECAM_LC);
+#define V4L2_STD_GH		bor(V4L2_STD_G		|
+				 V4L2_STD_H);
+#define V4L2_STD_DK		bor(V4L2_STD_PAL_DK	|
+				 V4L2_STD_SECAM_DK);
+#define V4L2_STD_BG		bor(V4L2_STD_B		|
+				 V4L2_STD_G);
+#define V4L2_STD_MN		bor(V4L2_STD_PAL_M		|
+				 V4L2_STD_PAL_N		|
+				 V4L2_STD_PAL_Nc	|
+				 V4L2_STD_NTSC);
 
 /* Standards where MTS/BTSC stereo could be found */
 #define V4L2_STD_MTS		(V4L2_STD_NTSC_M	|\
@@ -619,7 +521,9 @@ struct v4l2_standard {
 	__u32		     framelines;
 	__u32		     reserved[4];
 };
+]]
 
+ffi.cdef[[
 /*
  *	D V 	B T	T I M I N G S
  */
@@ -692,23 +596,10 @@ struct v4l2_bt_timings {
 #define V4L2_DV_BT_STD_GTF	(1 << 3)  /* VESA Generalized Timings Formula */
 
 /* Flags */
-
-/* CVT/GTF specific: timing uses reduced blanking (CVT) or the 'Secondary
-   GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
-   intervals are reduced, allowing a higher resolution over the same
-   bandwidth. This is a read-only flag. */
 #define V4L2_DV_FL_REDUCED_BLANKING		(1 << 0)
-/* CEA-861 specific: set for CEA-861 formats with a framerate of a multiple
-   of six. These formats can be optionally played at 1 / 1.001 speed.
-   This is a read-only flag. */
+
 #define V4L2_DV_FL_CAN_REDUCE_FPS		(1 << 1)
-/* CEA-861 specific: only valid for video transmitters, the flag is cleared
-   by receivers.
-   If the framerate of the format is a multiple of six, then the pixelclock
-   used to set up the transmitter is divided by 1.001 to make it compatible
-   with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
-   29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
-   such frequencies, then the flag will also be cleared. */
+
 #define V4L2_DV_FL_REDUCED_FPS			(1 << 2)
 /* Specific to interlaced formats: if set, then field 1 is really one half-line
    longer and field 2 is really one half-line shorter, so each field has
@@ -716,17 +607,25 @@ struct v4l2_bt_timings {
    or used depends on the hardware. */
 #define V4L2_DV_FL_HALF_LINE			(1 << 3)
 
-/* A few useful defines to calculate the total blanking and frame sizes */
-#define V4L2_DV_BT_BLANKING_WIDTH(bt) \
-	(bt->hfrontporch + bt->hsync + bt->hbackporch)
-#define V4L2_DV_BT_FRAME_WIDTH(bt) \
-	(bt->width + V4L2_DV_BT_BLANKING_WIDTH(bt))
-#define V4L2_DV_BT_BLANKING_HEIGHT(bt) \
-	(bt->vfrontporch + bt->vsync + bt->vbackporch + \
-	 bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch)
-#define V4L2_DV_BT_FRAME_HEIGHT(bt) \
-	(bt->height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
+-- A few useful defines to calculate the total blanking and frame sizes
+local function V4L2_DV_BT_BLANKING_WIDTH(bt)
+	return (bt->hfrontporch + bt->hsync + bt->hbackporch)
+end
 
+local function V4L2_DV_BT_FRAME_WIDTH(bt) 
+	return (bt->width + V4L2_DV_BT_BLANKING_WIDTH(bt))
+end
+
+local function V4L2_DV_BT_BLANKING_HEIGHT(bt) \
+	return (bt->vfrontporch + bt->vsync + bt->vbackporch + 
+	 bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch)
+end
+
+local function V4L2_DV_BT_FRAME_HEIGHT(bt) \
+	return (bt->height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
+end
+
+ffi.cdef[[
 /** struct v4l2_dv_timings - DV timings
  * @type:	the type of the timings
  * @bt:	BT656/1120 timings
@@ -738,33 +637,20 @@ struct v4l2_dv_timings {
 		__u32	reserved[32];
 	};
 } __attribute__ ((packed));
+]]
 
-/* Values for the type field */
-#define V4L2_DV_BT_656_1120	0	/* BT.656/1120 timing type */
+-- Values for the type field
+	V4L2_DV_BT_656_1120	 = 0;	-- BT.656/1120 timing type
 
-
-/** struct v4l2_enum_dv_timings - DV timings enumeration
- * @index:	enumeration index
- * @reserved:	must be zeroed
- * @timings:	the timings for the given index
- */
+ffi.cdef[[
 struct v4l2_enum_dv_timings {
 	__u32 index;
 	__u32 reserved[3];
 	struct v4l2_dv_timings timings;
 };
+]]
 
-/** struct v4l2_bt_timings_cap - BT.656/BT.1120 timing capabilities
- * @min_width:		width in pixels
- * @max_width:		width in pixels
- * @min_height:		height in lines
- * @max_height:		height in lines
- * @min_pixelclock:	Pixel clock in HZ. Ex. 74.25MHz->74250000
- * @max_pixelclock:	Pixel clock in HZ. Ex. 74.25MHz->74250000
- * @standards:		Supported standards
- * @capabilities:	Supported capabilities
- * @reserved:		Must be zeroed
- */
+ffi.cdef[[
 struct v4l2_bt_timings_cap {
 	__u32	min_width;
 	__u32	max_width;
@@ -776,20 +662,14 @@ struct v4l2_bt_timings_cap {
 	__u32	capabilities;
 	__u32	reserved[16];
 } __attribute__ ((packed));
+]]
 
-/* Supports interlaced formats */
 #define V4L2_DV_BT_CAP_INTERLACED	(1 << 0)
-/* Supports progressive formats */
 #define V4L2_DV_BT_CAP_PROGRESSIVE	(1 << 1)
-/* Supports CVT/GTF reduced blanking */
 #define V4L2_DV_BT_CAP_REDUCED_BLANKING	(1 << 2)
-/* Supports custom formats */
 #define V4L2_DV_BT_CAP_CUSTOM		(1 << 3)
 
-/** struct v4l2_dv_timings_cap - DV timings capabilities
- * @type:	the type of the timings (same as in struct v4l2_dv_timings)
- * @bt:		the BT656/1120 timings capabilities
- */
+ffi.cdef[[
 struct v4l2_dv_timings_cap {
 	__u32 type;
 	__u32 reserved[3];
@@ -798,11 +678,12 @@ struct v4l2_dv_timings_cap {
 		__u32 raw_data[32];
 	};
 };
+]]
 
-
-/*
+--[[
  *	V I D E O   I N P U T S
- */
+--]]
+ffi.cdef[[
 struct v4l2_input {
 	__u32	     index;		/*  Which input */
 	__u8	     name[32];		/*  Label */
@@ -814,18 +695,19 @@ struct v4l2_input {
 	__u32	     capabilities;
 	__u32	     reserved[3];
 };
+]]
 
-/*  Values for the 'type' field */
+--  Values for the 'type' field */
 #define V4L2_INPUT_TYPE_TUNER		1
 #define V4L2_INPUT_TYPE_CAMERA		2
 
-/* field 'status' - general */
+-- field 'status' - general */
 #define V4L2_IN_ST_NO_POWER    0x00000001  /* Attached device is off */
 #define V4L2_IN_ST_NO_SIGNAL   0x00000002
 #define V4L2_IN_ST_NO_COLOR    0x00000004
 
-/* field 'status' - sensor orientation */
-/* If sensor is mounted upside down set both bits */
+-- field 'status' - sensor orientation
+-- If sensor is mounted upside down set both bits
 #define V4L2_IN_ST_HFLIP       0x00000010 /* Frames are flipped horizontally */
 #define V4L2_IN_ST_VFLIP       0x00000020 /* Frames are flipped vertically */
 
@@ -848,9 +730,10 @@ struct v4l2_input {
 #define V4L2_IN_CAP_CUSTOM_TIMINGS	V4L2_IN_CAP_DV_TIMINGS /* For compatibility */
 #define V4L2_IN_CAP_STD			0x00000004 /* Supports S_STD */
 
-/*
- *	V I D E O   O U T P U T S
- */
+--[[
+	V I D E O   O U T P U T S
+--]]
+ffi.cdef[[
 struct v4l2_output {
 	__u32	     index;		/*  Which output */
 	__u8	     name[32];		/*  Label */
@@ -861,6 +744,8 @@ struct v4l2_output {
 	__u32	     capabilities;
 	__u32	     reserved[3];
 };
+]]
+
 /*  Values for the 'type' field */
 #define V4L2_OUTPUT_TYPE_MODULATOR		1
 #define V4L2_OUTPUT_TYPE_ANALOG			2
@@ -871,9 +756,11 @@ struct v4l2_output {
 #define V4L2_OUT_CAP_CUSTOM_TIMINGS	V4L2_OUT_CAP_DV_TIMINGS /* For compatibility */
 #define V4L2_OUT_CAP_STD		0x00000004 /* Supports S_STD */
 
-/*
+--[[
  *	C O N T R O L S
  */
+--]]
+ffi.cdef[[
 struct v4l2_control {
 	__u32		     id;
 	__s32		     value;
@@ -897,6 +784,7 @@ struct v4l2_ext_controls {
 	__u32 reserved[2];
 	struct v4l2_ext_control *controls;
 };
+]]
 
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
@@ -1214,6 +1102,7 @@ struct v4l2_vbi_format {
 #define V4L2_VBI_UNSYNC		(1 << 0)
 #define V4L2_VBI_INTERLACED	(1 << 1)
 
+ffi.cdef[[
 /* Sliced VBI
  *
  *    This implements is a proposal V4L2 API to allow SLICED VBI
@@ -1231,6 +1120,7 @@ struct v4l2_sliced_vbi_format {
 	__u32   io_size;
 	__u32   reserved[2];            /* must be zero */
 };
+]]
 
 /* Teletext World System Teletext
    (WST), defined on ITU-R BT.653-2 */
@@ -1245,6 +1135,7 @@ struct v4l2_sliced_vbi_format {
 #define V4L2_SLICED_VBI_525             (V4L2_SLICED_CAPTION_525)
 #define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_B | V4L2_SLICED_VPS | V4L2_SLICED_WSS_625)
 
+ffi.cdef[[
 struct v4l2_sliced_vbi_cap {
 	__u16   service_set;
 	/* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
@@ -1263,6 +1154,7 @@ struct v4l2_sliced_vbi_data {
 	__u32   reserved;       /* must be 0 */
 	__u8    data[48];
 };
+]]
 
 /*
  * Sliced VBI data inserted into MPEG Streams
@@ -1286,6 +1178,7 @@ struct v4l2_sliced_vbi_data {
 #define V4L2_MPEG_VBI_IVTV_WSS_625        (5)
 #define V4L2_MPEG_VBI_IVTV_VPS            (7)
 
+ffi.cdef[[
 struct v4l2_mpeg_vbi_itv0_line {
 	__u8 id;	/* One of V4L2_MPEG_VBI_IVTV_* above */
 	__u8 data[42];	/* Sliced VBI data for the line */
@@ -1299,10 +1192,12 @@ struct v4l2_mpeg_vbi_itv0 {
 struct v4l2_mpeg_vbi_ITV0 {
 	struct v4l2_mpeg_vbi_itv0_line line[36];
 } __attribute__ ((packed));
+]]
 
 #define V4L2_MPEG_VBI_IVTV_MAGIC0	"itv0"
 #define V4L2_MPEG_VBI_IVTV_MAGIC1	"ITV0"
 
+ffi.cdef[[
 struct v4l2_mpeg_vbi_fmt_ivtv {
 	__u8 magic[4];
 	union {
@@ -1310,7 +1205,10 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
 		struct v4l2_mpeg_vbi_ITV0 ITV0;
 	};
 } __attribute__ ((packed));
+]]
 
+
+ffi.cdef[[
 /*
  *	A G G R E G A T E   S T R U C T U R E S
  */
@@ -1327,7 +1225,9 @@ struct v4l2_plane_pix_format {
 	__u16		bytesperline;
 	__u16		reserved[7];
 } __attribute__ ((packed));
+]]
 
+ffi.cdef[[
 /**
  * struct v4l2_pix_format_mplane - multiplanar format definition
  * @width:		image width in pixels
@@ -1349,17 +1249,11 @@ struct v4l2_pix_format_mplane {
 	__u8				num_planes;
 	__u8				reserved[11];
 } __attribute__ ((packed));
+]]
 
-/**
- * struct v4l2_format - stream data format
- * @type:	enum v4l2_buf_type; type of the data stream
- * @pix:	definition of an image format
- * @pix_mp:	definition of a multiplanar image format
- * @win:	definition of an overlaid image
- * @vbi:	raw VBI capture or output parameters
- * @sliced:	sliced VBI capture or output parameters
- * @raw_data:	placeholder for future extensions and custom formats
- */
+
+ffi.cdef[[
+
 struct v4l2_format {
 	__u32	 type;
 	union {
@@ -1371,9 +1265,10 @@ struct v4l2_format {
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };
+]]
 
-/*	Stream type-dependent parameters
- */
+ffi.cdef[[
+
 struct v4l2_streamparm {
 	__u32	 type;			/* enum v4l2_buf_type */
 	union {
@@ -1382,6 +1277,7 @@ struct v4l2_streamparm {
 		__u8	raw_data[200];  /* user-defined */
 	} parm;
 };
+]]
 
 /*
  *	E V E N T S
@@ -1394,17 +1290,20 @@ struct v4l2_streamparm {
 #define V4L2_EVENT_FRAME_SYNC			4
 #define V4L2_EVENT_PRIVATE_START		0x08000000
 
+ffi.cdef[[
 /* Payload for V4L2_EVENT_VSYNC */
 struct v4l2_event_vsync {
 	/* Can be V4L2_FIELD_ANY, _NONE, _TOP or _BOTTOM */
 	__u8 field;
 } __attribute__ ((packed));
+]]
 
 /* Payload for V4L2_EVENT_CTRL */
 #define V4L2_EVENT_CTRL_CH_VALUE		(1 << 0)
 #define V4L2_EVENT_CTRL_CH_FLAGS		(1 << 1)
 #define V4L2_EVENT_CTRL_CH_RANGE		(1 << 2)
 
+ffi.cdef[[
 struct v4l2_event_ctrl {
 	__u32 changes;
 	__u32 type;
@@ -1437,16 +1336,19 @@ struct v4l2_event {
 	__u32				id;
 	__u32				reserved[8];
 };
+]]
 
 #define V4L2_EVENT_SUB_FL_SEND_INITIAL		(1 << 0)
 #define V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK	(1 << 1)
 
+ffi.cdef[[
 struct v4l2_event_subscription {
 	__u32				type;
 	__u32				id;
 	__u32				flags;
 	__u32				reserved[5];
 };
+]]
 
 /*
  *	A D V A N C E D   D E B U G G I N G
@@ -1466,6 +1368,7 @@ struct v4l2_event_subscription {
 #define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
 #define V4L2_CHIP_MATCH_AC97        3  /* Match against ancillary AC97 chip */
 
+ffi.cdef[[
 struct v4l2_dbg_match {
 	__u32 type; /* Match type */
 	union {     /* Match this chip, meaning determined by type */
@@ -1480,10 +1383,12 @@ struct v4l2_dbg_register {
 	__u64 reg;
 	__u64 val;
 } __attribute__ ((packed));
+]]
 
 #define V4L2_CHIP_FL_READABLE (1 << 0)
 #define V4L2_CHIP_FL_WRITABLE (1 << 1)
 
+ffi.cdef[[
 /* VIDIOC_DBG_G_CHIP_INFO */
 struct v4l2_dbg_chip_info {
 	struct v4l2_dbg_match match;
@@ -1492,15 +1397,7 @@ struct v4l2_dbg_chip_info {
 	__u32 reserved[32];
 } __attribute__ ((packed));
 
-/**
- * struct v4l2_create_buffers - VIDIOC_CREATE_BUFS argument
- * @index:	on return, index of the first created buffer
- * @count:	entry: number of requested buffers,
- *		return: number of created buffers
- * @memory:	enum v4l2_memory; buffer memory type
- * @format:	frame format, for which buffers are requested
- * @reserved:	future extensions
- */
+
 struct v4l2_create_buffers {
 	__u32			index;
 	__u32			count;
@@ -1508,11 +1405,21 @@ struct v4l2_create_buffers {
 	struct v4l2_format	format;
 	__u32			reserved[8];
 };
+]]
 
+--[[
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
- */
+--]]
+local T = ffi.typeof;
+local VIDIOC_IOCTL_BASE	= 'V';
+
+local function VIDIOC_IO(nr)	return libc._IO(DRM_IOCTL_BASE,nr) end
+local function VIDIOC_IOR(nr,type) return 	libc._IOR(DRM_IOCTL_BASE,nr,type) end
+local function VIDIOC_IOW(nr,type)	return	libc._IOW(DRM_IOCTL_BASE,nr,type) end
+local function VIDIOC_IOWR(nr,type) return libc._IOWR(DRM_IOCTL_BASE,nr,type) end
+
 #define VIDIOC_QUERYCAP		 _IOR('V',  0, struct v4l2_capability)
 #define VIDIOC_RESERVED		  _IO('V',  1)
 #define VIDIOC_ENUM_FMT         _IOWR('V',  2, struct v4l2_fmtdesc)

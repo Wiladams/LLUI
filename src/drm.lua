@@ -9,9 +9,9 @@ local libc = require("libc")
 
 local	DRM_IOCTL_BASE	= 'd'
 local function DRM_IO(nr)	return libc._IO(DRM_IOCTL_BASE,nr) end
-local function DRM_IOR(nr,type) return 	libc._IOR(DRM_IOCTL_BASE,nr,type) end
-local function DRM_IOW(nr,type)	return	libc._IOW(DRM_IOCTL_BASE,nr,type) end
-local function DRM_IOWR(nr,type) return libc._IOWR(DRM_IOCTL_BASE,nr,type) end
+local function DRM_IOR(nr,ctype) return 	libc._IOR(DRM_IOCTL_BASE,nr,ctype) end
+local function DRM_IOW(nr,ctype)	return	libc._IOW(DRM_IOCTL_BASE,nr,ctype) end
+local function DRM_IOWR(nr,ctype) return libc._IOWR(DRM_IOCTL_BASE,nr,ctype) end
 
 local T = ffi.typeof
 

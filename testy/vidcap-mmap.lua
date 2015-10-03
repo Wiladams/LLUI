@@ -12,15 +12,19 @@
 
 require ("videodev2")()
 
+local int = ffi.typeof("int")
+
 local function  CLEAR(x) 
     libc.memset(x, 0, ffi.sizeof(x))
 end
 
+--[[
 local io_method = {
     IO_METHOD_READ = 0,
     IO_METHOD_MMAP = 1,
     IO_METHOD_USERPTR = 2,
 };
+--]]
 
 ffi.cdef[[
 struct buffer {
@@ -39,14 +43,11 @@ static int              force_format;
 static int              frame_count = 70;
 
 local function errno_exit(s)
-
-        fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
-        exit(EXIT_FAILURE);
-        error();
+    libc.fprintf(io.stderr, "%s error %d, %s\n", s, errno, strerror(errno));
+    error(EXOT_FAILURE);
 end
 
 local function xioctl(int fh, int request, void *arg)
-
     local r;
 
     do {
@@ -58,8 +59,9 @@ end
 
 local function process_image(const void *p, int size)
 
-        if (out_buf)
+        if (out_buf ~= nil) then
                 fwrite(p, size, 1, stdout);
+        end
 
         libc.fflush(io.stderr);
         libc.fprintf(io.stderr, ".");
@@ -200,12 +202,10 @@ local function mainloop(fd)
 end
 
 local function stop_capturing(fd)
-        enum v4l2_buf_type type;
-
-                type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                if (-1 == xioctl(fd, VIDIOC_STREAMOFF, &type)) then
-                        errno_exit("VIDIOC_STREAMOFF");
-                end
+    local atype = ffi.new("int[1]", V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    if (-1 == xioctl(fd, VIDIOC_STREAMOFF, atype)) then
+        errno_exit("VIDIOC_STREAMOFF");
+    end
 end
 
 local function start_capturing(fd)
@@ -247,15 +247,15 @@ end
 
 local function init_mmap(fd)
 
-        struct v4l2_requestbuffers req;
+    struct v4l2_requestbuffers req;
 
-        CLEAR(req);
+    CLEAR(req);
 
-        req.count = 4;
-        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        req.memory = V4L2_MEMORY_MMAP;
+    req.count = 4;
+    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req.memory = V4L2_MEMORY_MMAP;
 
-        if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
+    if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
                 if (EINVAL == errno) {
                         fprintf(stderr, "%s does not support "
                                  "memory mapping\n", dev_name);
@@ -263,22 +263,23 @@ local function init_mmap(fd)
                 } else {
                         errno_exit("VIDIOC_REQBUFS");
                 }
-        }
+    }
 
-        if (req.count < 2) {
+    if (req.count < 2) 
+    {
                 fprintf(stderr, "Insufficient buffer memory on %s\n",
                          dev_name);
                 exit(EXIT_FAILURE);
-        }
+    }
 
-        buffers = calloc(req.count, sizeof(*buffers));
+    buffers = calloc(req.count, sizeof(*buffers));
 
-        if (!buffers) {
+    if (!buffers) {
                 fprintf(stderr, "Out of memory\n");
                 exit(EXIT_FAILURE);
-        }
+    }
 
-        for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
+    for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
                 struct v4l2_buffer buf;
 
                 CLEAR(buf);
@@ -300,7 +301,7 @@ local function init_mmap(fd)
 
                 if (MAP_FAILED == buffers[n_buffers].start)
                         errno_exit("mmap");
-        }
+    }
 end
 
 
@@ -400,7 +401,6 @@ local function init_device(fd)
 end
 
 local function close_device(fd)
-
     if (-1 == libc.close(fd)) then
         errno_exit("close");
     end
@@ -411,39 +411,36 @@ end
 local function open_device(dev_name)
         local fd = -1;
 
-        struct stat st = ffi.new("struct stat");
+        local st = ffi.new("struct stat");
 
         if (-1 == libc.stat(dev_name, st)) then
                 fprintf(io.stderr, "Cannot identify '%s': %d, %s\n",
                          dev_name, ffi.errno(), libc.strerror(ffi.errno()));
                 exit(EXIT_FAILURE);
-        }
+        end
 
         if (!S_ISCHR(st.st_mode)) then
-                fprintf(io.stderr, "%s is no device\n", dev_name);
-                exit(EXIT_FAILURE);
-        emd
+                libc.fprintf(io.stderr, "%s is no device\n", dev_name);
+                error(EXIT_FAILURE);
+        end
 
-        fd = open(dev_name, O_RDWR /* required */ | O_NONBLOCK, 0);
+        fd = open(dev_name, bor(libc.O_RDWR, libc.O_NONBLOCK), int(0));
 
-        if (-1 == fd) {
-                fprintf(stderr, "Cannot open '%s': %d, %s\n",
+        if (-1 == fd) then
+                libc.fprintf(stderr, "Cannot open '%s': %d, %s\n",
                          dev_name, errno, strerror(errno));
-                exit(EXIT_FAILURE);
-        }
+                error(EXIT_FAILURE);
+        end
 end
 
 local function usage(FILE *fp, int argc, char **argv)
 
         libc.fprintf(fp,
                  "Usage: %s [options]\n\n"
-                 "Version 1.3\n"
+                 "Version 1.0\n"
                  "Options:\n"
                  "-d | --device name   Video device name [%s]\n"
                  "-h | --help          Print this message\n"
-                 "-m | --mmap          Use memory mapped buffers [default]\n"
-                 "-r | --read          Use read() calls\n"
-                 "-u | --userp         Use application allocated buffers\n"
                  "-o | --output        Outputs stream to stdout\n"
                  "-f | --format        Force format to 640x480 YUYV\n"
                  "-c | --count         Number of frames to grab [%i]\n"
