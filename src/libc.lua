@@ -36,6 +36,8 @@ typedef uint16_t      mode_t;
 typedef long ssize_t;
 
 struct timeval { time_t tv_sec; suseconds_t tv_usec; };
+struct timespec { time_t tv_sec; long tv_nsec; };
+
 ]]
 
 -- ioctl related

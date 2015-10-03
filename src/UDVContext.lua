@@ -88,7 +88,7 @@ function UDVContext.devices(self)
 
 	-- get the results
 	local listEntry = libudev.udev_enumerate_get_list_entry(enumerate);
-	--local results =  UDVListIterator(listEntry)
+
 	return UDVDeviceIterator, self, listEntry 
 end 
 
