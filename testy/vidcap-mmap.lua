@@ -10,7 +10,7 @@
 --]]
 
 
-require ("videodev2")
+require ("videodev2")()
 
 local function  CLEAR(x) 
     libc.memset(x, 0, ffi.sizeof(x))
@@ -30,7 +30,7 @@ struct buffer {
 ]]
 
 static char            *dev_name;
-static enum io_method   io = io_method.IO_METHOD_MMAP;
+local   io = io_method.IO_METHOD_MMAP;
 static int              fd = -1;
 struct buffer          *buffers;
 static unsigned int     n_buffers;
@@ -158,14 +158,12 @@ local function read_frame(fd)
         return 1;
 end
 
-local function mainloop()
+local function mainloop(fd)
 
-        unsigned int count;
+        local count = frame_count;
 
-        count = frame_count;
-
-        while (count-- > 0) {
-                for (;;) {
+        while (count > 0) do
+                while true do
                         fd_set fds;
                         struct timeval tv;
                         int r;
@@ -179,33 +177,35 @@ local function mainloop()
 
                         r = select(fd + 1, &fds, NULL, NULL, &tv);
 
-                        if (-1 == r) {
-                                if (EINTR == errno)
+                        if (-1 == r) then
+                                if (EINTR == errno) then
                                         continue;
+                                end
                                 errno_exit("select");
-                        }
+                        end
 
-                        if (0 == r) {
+                        if (0 == r) then
                                 fprintf(stderr, "select timeout\n");
                                 exit(EXIT_FAILURE);
-                        }
+                        end
 
-                        if (read_frame(fd))
+                        if (read_frame(fd)) then
                                 break;
-                        /* EAGAIN - continue select loop. */
-                }
-        }
+                        end
+
+                        -- EAGAIN - continue select loop.
+                end
+            count = count - 1;
+        end
 end
 
 local function stop_capturing(fd)
-
         enum v4l2_buf_type type;
 
-
                 type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                if (-1 == xioctl(fd, VIDIOC_STREAMOFF, &type))
+                if (-1 == xioctl(fd, VIDIOC_STREAMOFF, &type)) then
                         errno_exit("VIDIOC_STREAMOFF");
-                break;
+                end
 end
 
 local function start_capturing(fd)
@@ -213,12 +213,6 @@ local function start_capturing(fd)
         unsigned int i;
         enum v4l2_buf_type type;
 
-        switch (io) {
-        case IO_METHOD_READ:
-                /* Nothing to do. */
-                break;
-
-        case IO_METHOD_MMAP:
                 for (i = 0; i < n_buffers; ++i) {
                         struct v4l2_buffer buf;
 
@@ -233,27 +227,7 @@ local function start_capturing(fd)
                 type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
                 if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
                         errno_exit("VIDIOC_STREAMON");
-                break;
 
-        case IO_METHOD_USERPTR:
-                for (i = 0; i < n_buffers; ++i) {
-                        struct v4l2_buffer buf;
-
-                        CLEAR(buf);
-                        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                        buf.memory = V4L2_MEMORY_USERPTR;
-                        buf.index = i;
-                        buf.m.userptr = (unsigned long)buffers[i].start;
-                        buf.length = buffers[i].length;
-
-                        if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-                                errno_exit("VIDIOC_QBUF");
-                }
-                type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
-                        errno_exit("VIDIOC_STREAMON");
-                break;
-        }
 end
 
 local function uninit_device()
@@ -524,13 +498,7 @@ local function main(argc, argv)
                         io = IO_METHOD_MMAP;
                         break;
 
-                case 'r':
-                        io = IO_METHOD_READ;
-                        break;
 
-                case 'u':
-                        io = IO_METHOD_USERPTR;
-                        break;
 
                 case 'o':
                         out_buf++;
@@ -548,13 +516,13 @@ local function main(argc, argv)
                         break;
 
                 default:
-                        usage(stderr, argc, argv);
-                        exit(EXIT_FAILURE);
+                        usage(io.stderr, argc, argv);
+                        error(EXIT_FAILURE);
                 }
         }
 
     local fd = open_device(dev_name);
-    init_device();
+    init_device(fd);
     start_capturing(fd);
     mainloop();
     stop_capturing(fd);
@@ -564,3 +532,5 @@ local function main(argc, argv)
         
     return true;
 end
+
+main(#arg, arg)

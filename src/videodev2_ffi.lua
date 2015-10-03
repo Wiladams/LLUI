@@ -1,6 +1,5 @@
 local ffi = require("ffi")
 
-require("v4l2_common")
 require("v4l2_controls")
 
 
