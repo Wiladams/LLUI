@@ -3,10 +3,12 @@ local ffi = require("ffi")
 local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 
-local libc = require("libc")
 local Lib_v4l2 = require("v4l2_ffi")
 local videodev2_ffi = require("videodev2_ffi")
 local v4l2_fourcc = require("v4l2_fourcc")
+--local v4l2_controls = require("v4l2_controls")
+local libc = require("libc")
+
 
 local T = ffi.typeof;
 

@@ -11,7 +11,6 @@ local ffi = require("ffi")
 local bit = require("bit")
 local lshift, rshift, band, bor = bit.lshift, bit.rshift, bit.band, bit.bor
 
---require("v4l2_controls")
 local libc = require("libc")
 
 local Constants = {}
