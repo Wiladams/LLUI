@@ -15,16 +15,9 @@ require ("videodev2")()
 local int = ffi.typeof("int")
 
 local function  CLEAR(x) 
-    libc.memset(x, 0, ffi.sizeof(x))
+    libc.set(x, 0, ffi.sizeof(x))
 end
 
---[[
-local io_method = {
-    IO_METHOD_READ = 0,
-    IO_METHOD_MMAP = 1,
-    IO_METHOD_USERPTR = 2,
-};
---]]
 
 ffi.cdef[[
 struct buffer {
