@@ -108,7 +108,8 @@ size_t strlen(const char *);
 ffi.cdef[[
 	int open (const char *__file, int __oflag, ...);
 	int close(int fd);
-
+	int read(int fd, char *buffer, unsigned int length); 
+	int write(int fd, char *buffer, unsigned int length);
 ]]
 
 --[[
@@ -347,11 +348,12 @@ local errnos = {
 
 local function strerror(num)
 	num = num or ffi.errno();
-	return getNameOfValue(errnos, num)
+	return getNameOfValue(num, errnos)
 end
 
 
 local exports = {
+	errnos = errnos;
 
 	-- fcntl
 	O_RDONLY	= octal('00000000');
@@ -411,6 +413,8 @@ local exports = {
 
 	open = ffi.C.open;
 	close = ffi.C.close;
+	read = ffi.C.read;
+	write = ffi.C.write;
 
 	-- Random numbers
 	rand = ffi.C.rand;

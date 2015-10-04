@@ -15,7 +15,7 @@ require ("videodev2")()
 local int = ffi.typeof("int")
 
 local function  CLEAR(x) 
-    libc.set(x, 0, ffi.sizeof(x))
+    libc.memset(x, 0, ffi.sizeof(x))
 end
 
 

@@ -33,7 +33,7 @@ local Constants = {
 	V4L2_SEL_FLAG_KEEP_CONFIG	= lshift(1, 2);
 
 
-	-- Values for 'capabilities' field
+	-- Values for 'v4l2_capability.capabilities' field
 	V4L2_CAP_VIDEO_CAPTURE		= 0x00000001 ; -- Is a video capture device */
 	V4L2_CAP_VIDEO_OUTPUT		= 0x00000002; -- Is a video output device */
 	V4L2_CAP_VIDEO_OVERLAY		= 0x00000004; -- Can do video overlay */
@@ -821,12 +821,17 @@ setmetatable(exports, {
 			tbl[k] = v;
 		end
 		
+		tbl["v4l2_fourcc"] = self.v4l2_fourcc;
 		for k,v in pairs(self.v4l2_fourcc) do
 			tbl[k] = v;
 		end
 
 		for k,v in pairs(self.Enums) do
 			tbl[k] = v;
+
+			for key,value in pairs(v) do
+				tbl[key] = value;
+			end
 		end
 
 		for k,v in pairs(self.Functions) do
