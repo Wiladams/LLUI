@@ -16,6 +16,8 @@ local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 
 local libc = require("libc")()
 local videodev2 = require ("videodev2")()
+local enumbits = require("enumbits")
+
 
 local int = ffi.typeof("int")
 
@@ -167,6 +169,12 @@ local function init_device(fd, dev_name)
             errno_exit("VIDIOC_QUERYCAP");
         end
     end
+
+    io.write("Capabilities: ")
+    for _, name in enumbits(cap.capabilities, v4l2_capability_flags, 32) do
+        io.write(string.format("%s,", name))
+    end
+    print()
 
     if (band(cap.capabilities, V4L2_CAP_VIDEO_CAPTURE) == 0) then
         io.stderr:write(string.format("%s is no video capture device\n",dev_name));
