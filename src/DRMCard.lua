@@ -81,22 +81,6 @@ function DRMCard.getLibVersion(self)
 	return ver;
 end
 
---[[
-typedef struct _drmStats {
-    unsigned long count;	     /**< Number of data */
-    struct {
-	unsigned long value;	     /**< Value from kernel */
-	const char    *long_format;  /**< Suggested format for long_name */
-	const char    *long_name;    /**< Long name for value */
-	const char    *rate_format;  /**< Suggested format for rate_name */
-	const char    *rate_name;    /**< Short name for value per second */
-	int           isvalue;       /**< True if value (vs. counter) */
-	const char    *mult_names;   /**< Multiplier names (e.g., "KGM") */
-	int           mult;          /**< Multiplier value (e.g., 1024) */
-	int           verbose;       /**< Suggest only in verbose output */
-    } data[15];
-} drmStatsT;
---]]
 
 
 
@@ -149,25 +133,7 @@ function DRMCard.getConnector(self, id)
 	return DRMCardConnector(self.Handle, id)
 end
 
---[[
-typedef struct _drmModeRes {
 
-  int count_fbs;
-  uint32_t *fbs;
-
-  int count_crtcs;
-  uint32_t *crtcs;
-
-  int count_connectors;
-  uint32_t *connectors;
-
-  int count_encoders;
-  uint32_t *encoders;
-
-  uint32_t min_width, max_width;
-  uint32_t min_height, max_height;
-} drmModeRes, *drmModeResPtr;
---]]
 function DRMCard.prepare(self)
 
 --	struct modeset_dev *dev;
@@ -181,15 +147,6 @@ function DRMCard.prepare(self)
 	ffi.gc(res, xf86drmMode.drmModeFreeResources)
 
 	self.Resources = {}
-
---[[
-	print("Connectors: ", res.count_connectors);
-	print("CRTCs: ", res.count_crtcs);
-	print("FBs: ", res.count_fbs);
-	print("Encoders: ", res.count_encoders);
-	print("Min Size: ", res.min_width, res.min_height);
-	print("Max Size: ", res.max_width, res.max_height);
---]]
 
 
 	-- iterate all the connectors

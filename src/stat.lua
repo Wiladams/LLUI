@@ -78,7 +78,7 @@ local exports = {
 	Constants = Constants;
 	Macros = Macros;
 
-	stat = ffi.C.stat;
+	--stat = ffi.C.stat;
 }
 
 setmetatable(exports, {

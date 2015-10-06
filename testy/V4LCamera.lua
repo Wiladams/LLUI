@@ -27,14 +27,34 @@ setmetatable(V4LCamera, {
 
 local V4LCamera_mt = {
 	__index = V4LCamera;
+	__tostring = function(self)
+		return self:toString();
+	end;
 }
 
 function V4LCamera.init(self, fd, dev_name)
+
+    local cap = ffi.new("struct v4l2_capability");
+    if (-1 == xioctl(fd, vd2.Constants.VIDIOC_QUERYCAP, cap)) then
+        if (libc.errnos.EINVAL == ffi.errno() or (libc.errnos.ENOTTY == ffi.errno())) then
+            io.stderr:write(string.format("%s is no V4L2 device\n", self.DevNode));
+            return nil
+        else
+        	return nil,"VIDIOC_QUERYCAP" 
+        end
+    end
+
 	local obj = {
 		Handle = fd;
 		DevNode = dev_name;
+
+		Driver = ffi.string(cap.driver);
+		Card = ffi.string(cap.card);
+		Bus = ffi.string(cap.bus_info);
 	}
 	setmetatable(obj, V4LCamera_mt)
+
+
 
 	return obj;
 end
@@ -47,6 +67,21 @@ function V4LCamera.new(self, dev_name)
 
 	-- if successful, initialize and return
 	return self:init(fd, dev_name);
+end
+
+function V4LCamera.toString(self)
+	return string.format([[
+{
+	DevNode = '%s';
+	Driver = '%s';
+	Card = '%s';
+	Bus = '%s';
+}
+]], 
+	self.DevNode,
+	self.Driver,
+	self.Card,
+	self.Bus)
 end
 
 --[[

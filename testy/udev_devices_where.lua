@@ -15,7 +15,7 @@ if #arg < 1 then
 	error("you must specify a predicate")
 end
 
-local predicate = require(arg[1])
+local predicate = dofile(arg[1])
 
 print("{")
 	

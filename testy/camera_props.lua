@@ -44,8 +44,7 @@ local function main(argc, argv)
 	local cam = V4LCamera(dev_name)
 	assert(cam, "could not create camera")
 
-	cam:capabilities();
-	--cam:close();
+	print(cam);
 end
 
 --[[

@@ -20,9 +20,17 @@ local bor, band, lshift, rshift = bit.bor, bit.band, bit.lshift, bit.rshift
 
 local libc = require("libc")
 local utils = require("utils")
+local fun = require("fun")
 local ppm = require("ppm")
 local GraphPort = require("render_simple")
 local DRMCard = require("DRMCard")
+local DRMEnvironment = require("DRMEnvironment")
+
+
+local function getCard(cardnum)
+	return fun.nth(cardnum, DRMEnvironment:cards())
+end
+
 
 local function RGB(r,g,b)
 	return band(0xFFFFFF, bor(lshift(r, 16), lshift(g, 8), b))
@@ -31,33 +39,38 @@ end
 local function drawLines(fb)
 	local color = RGB(23, 250, 127)
 
-	for i = 1, 400 do
+	for i = 1, 180 do
 		GraphPort.h_line(fb, 10+i, 10+i, i, color)
 	end
 end
 
-local card, err = DRMCard();
 
-local fb = card:getDefaultFrameBuffer();
-fb.DataPtr = fb:getDataPtr();
-
-print("fb: [bpp, depth, pitch]: ", fb.BitsPerPixel, fb.Depth, fb.Pitch)
 
 local function drawRectangles(fb)
-	GraphPort.rect(fb, 200, 200, 320, 240, RGB(230, 34, 127))
+	GraphPort.rect(fb, 20, 20, 280, 200, RGB(230, 34, 127))
 end
 
-local function draw()
-
-	drawLines(fb)
-
+local function draw(fb)
 	drawRectangles(fb);
+	drawLines(fb)
 end
 
-draw();
+local function main(argc, argv)
+	local cardnum = tonumber(argv[1])
+	cardnum = cardnum or 1
 
-ppm.write_PPM_binary("draw_crtc_lines.ppm", fb.DataPtr, fb.Width, fb.Height, fb.Pitch)
--- sleep for a little bit of time
--- just so we can see what's there
--- libc.sleep(3);
+	
+	local card = getCard(cardnum)
+	assert(card, "could not create card")
 
+	local fb = card:getDefaultFrameBuffer();
+	fb.DataPtr = fb:getDataPtr();
+
+	print("fb: [bpp, depth, pitch]: ", fb.BitsPerPixel, fb.Depth, fb.Pitch)
+
+	draw(fb);
+
+	ppm.write_PPM_binary("draw_crtc_lines.ppm", fb.DataPtr, fb.Width, fb.Height, fb.Pitch)
+end
+
+main(#arg, arg)

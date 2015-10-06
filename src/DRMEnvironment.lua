@@ -6,7 +6,19 @@ local band = bit.band
 local xf86drm = require("xf86drm_ffi")()
 local xf86drmMode = require("xf86drmMode_ffi")()
 local libc = require("libc")()
+local ctxt, err = require("UDVContext")()
+local fun = require("fun")
+local DRMCard = require("DRMCard")
 
+
+
+local function isDrmCard(dev)
+	return dev.IsInitialized and
+		dev:getProperty("SUBSYSTEM") == 'drm' and
+		dev:getProperty("MAJOR") == '226' and
+		dev.SysName:find("card")
+		
+end
 
 local DRMEnvironment = {}
 function DRMEnvironment.available(self)
@@ -24,5 +36,17 @@ function DRMEnvironment.open(self, nodename)
 	return fd;
 end
 
+--[[
+	An iterator that returns DRMCards for all the libudev reported
+	devices that look like /dev/dri/cardxxx
+--]]
+function DRMEnvironment.cards(self)
+	local function deviceToDrmCard(dev)
+		print(dev.SysName)
+		return DRMCard(dev.DevNode)
+	end
 
-return DRM
+	return fun.map(deviceToDrmCard,  fun.filter(isDrmCard, ctxt:devices()))
+end
+
+return DRMEnvironment
