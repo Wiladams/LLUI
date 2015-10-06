@@ -202,7 +202,10 @@ function DRMCard.getDefaultConnection(self)
 end
 
 function DRMCard.getDefaultFrameBuffer(self)
-	return self:getDefaultConnection().Encoder.CrtController.FrameBuffer;
+	local connection = self:getDefaultConnection();
+	assert(connection, "DRMCard.getDefaultConnection")
+
+	return connection.Encoder.CrtController.FrameBuffer;
 end
 
 function DRMCard.getEncoder(self, id)
