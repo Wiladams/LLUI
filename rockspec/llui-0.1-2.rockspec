@@ -14,10 +14,14 @@
     homepage = "http://github.com/wiladams/LLUI",
     license = "MIT/X11"
  }
- dependencies = {
+ 
+ supported_platforms = {"linux"}
+  
+  dependencies = {
     "lua ~> 5.1"
- }
- build = {
+  }
+
+  build = {
     type = "builtin",
 
     modules = {
@@ -25,19 +29,17 @@
       ["LLUI.fun"] = "src/fun.lua",
       ["LLUI.kernel"] = "src/kernel.lua",
       ["LLUI.fourcc"] = "src/fourcc.lua",
-
-
     },
     
     platforms = {
       linux = {
         modules = {
-      -- linux/libc specifics
-      ["LLUI.libc"] = "src/libc.lua",
-      ["LLUI.stat"] = "src/stat.lua",
+          -- linux/libc specifics
+          ["LLUI.libc"] = "src/libc.lua",
+          ["LLUI.stat"] = "src/stat.lua",
 
-      -- libdrm
-      ["LLUI.DRMCard"] = "src/DRMCard.lua",
+          -- libdrm
+          ["LLUI.DRMCard"] = "src/DRMCard.lua",
       ["LLUI.DRMCardConnector"] = "src/DRMCardConnector.lua",
       ["LLUI.DRMCardMode"] = "src/DRMCardMode.lua",
       ["LLUI.DRMCrtController"] = "src/DRMCrtController.lua",
