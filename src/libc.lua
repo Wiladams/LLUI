@@ -4,16 +4,17 @@ local bit = require("bit")
 local band, bor = bit.band, bit.bor
 local lshift, rshift = bit.lshift, bit.rshift
 
-
+local C = {}
+local F = {}
 
 -- utility functions
-local function octal(val)
+function F.octal(val)
 	return tonumber(val,8);
 end
 
 -- reverse dictionary lookup
 -- given a value, return the key or nil
-local function getNameOfValue(value, tbl)
+function F.getNameOfValue(value, tbl)
 	for k,v in pairs(tbl) do
 		if v == value 
 			then return k
@@ -26,6 +27,26 @@ end
 
 -- useful types
 ffi.cdef[[
+typedef unsigned int mode_t;
+typedef unsigned int nlink_t;
+typedef int64_t off_t;
+typedef uint64_t ino_t;
+typedef uint64_t dev_t;
+typedef long blksize_t;
+typedef int64_t blkcnt_t;
+typedef uint64_t fsblkcnt_t;
+typedef uint64_t fsfilcnt_t;
+]]
+
+
+
+ffi.cdef[[
+typedef int pid_t;
+typedef unsigned int id_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef int key_t;
+
 typedef uint32_t __useconds_t;
 typedef __useconds_t useconds_t;
 typedef long suseconds_t;
@@ -75,6 +96,106 @@ local function _IOWR(a,b,c) return _IOC(bor(_IOC_READ,_IOC_WRITE),a,b,ffi.sizeof
 ffi.cdef[[
 int ioctl (int, int, ...);
 ]]
+
+--[[
+	stat() related
+--]]
+
+ffi.cdef[[
+typedef struct stat {
+	dev_t st_dev;
+	ino_t st_ino;
+	nlink_t st_nlink;
+
+	mode_t st_mode;
+	uid_t st_uid;
+	gid_t st_gid;
+	unsigned int    __pad0;
+	dev_t st_rdev;
+	off_t st_size;
+	blksize_t st_blksize;
+	blkcnt_t st_blocks;
+
+	struct timespec st_atim;
+	struct timespec st_mtim;
+	struct timespec st_ctim;
+	long __unused[3];
+} stat_t;
+]]
+
+
+ffi.cdef[[
+int __fxstat(int ver, int fd, struct stat *buf);
+int __fxstatat(int ver, int fd, const char *path, struct stat *buf, int flag);
+int __lxstat(int ver, const char *path, struct stat *buf);
+int __xstat(int ver, const char *path, struct stat *buf);
+]]
+
+ffi.cdef[[
+int stat(const char *__restrict, struct stat *__restrict);
+int fstat(int, struct stat *);
+int lstat(const char *__restrict, struct stat *__restrict);
+int fstatat(int, const char *__restrict, struct stat *__restrict, int);
+int chmod(const char *, mode_t);
+int fchmod(int, mode_t);
+int fchmodat(int, const char *, mode_t, int);
+mode_t umask(mode_t);
+int mkdir(const char *, mode_t);
+int mknod(const char *, mode_t, dev_t);
+int mkfifo(const char *, mode_t);
+int mkdirat(int, const char *, mode_t);
+int mknodat(int, const char *, mode_t, dev_t);
+int mkfifoat(int, const char *, mode_t);
+
+int futimens(int, const struct timespec [2]);
+int utimensat(int, const char *, const struct timespec [2], int);
+]]
+
+
+	C.S_IFMT   = F.octal(00170000);
+	C.S_IFSOCK = F.octal(0140000);
+	C.S_IFLNK  = F.octal(0120000);
+	C.S_IFREG  = F.octal(0100000);
+	C.S_IFBLK  = F.octal(0060000);
+	C.S_IFDIR  = F.octal(0040000);
+	C.S_IFCHR  = F.octal(0020000);
+	C.S_IFIFO  = F.octal(0010000);
+	C.S_ISUID  = F.octal(0004000);
+	C.S_ISGID  = F.octal(0002000);
+	C.S_ISVTX  = F.octal(0001000);
+
+
+	C.S_IRWXU = F.octal(00700);
+	C.S_IRUSR = F.octal(00400);
+	C.S_IWUSR = F.octal(00200);
+	C.S_IXUSR = F.octal(00100);
+
+	C.S_IRWXG = F.octal(00070);
+	C.S_IRGRP = F.octal(00040);
+	C.S_IWGRP = F.octal(00020);
+	C.S_IXGRP = F.octal(00010);
+
+	C.S_IRWXO = F.octal(00007);
+	C.S_IROTH = F.octal(00004);
+	C.S_IWOTH = F.octal(00002);
+	C.S_IXOTH = F.octal(00001);
+
+local _STAT_VER_KERNEL	= 0;
+local _STAT_VER_LINUX	= 1;
+
+C._STAT_VER	= _STAT_VER_LINUX;
+
+
+function F.S_ISLNK(m) return (band((m), C.S_IFMT) == C.S_IFLNK) end
+function F.S_ISREG(m) return (band((m), C.S_IFMT) == C.S_IFREG) end
+function F.S_ISDIR(m) return (band((m), C.S_IFMT) == C.S_IFDIR) end
+function F.S_ISCHR(m) return (band((m), C.S_IFMT) == C.S_IFCHR) end
+function F.S_ISBLK(m) return (band((m), C.S_IFMT) == C.S_IFBLK) end
+function F.S_ISFIFO(m) return (band((m), C.S_IFMT) == C.S_IFIFO) end
+function F.S_ISSOCK(m) return (band((m), C.S_IFMT) == C.S_IFSOCK) end
+
+function F.stat(path, buf) return ffi.C.__xstat(C._STAT_VER, path, buf) end
+function F.lstat(path, buf) return ffi.C.__lxstat(C._STAT_VER, path, buf) end
 
 
 --[[
@@ -129,6 +250,9 @@ int fprintf(FILE *__restrict, const char *__restrict, ...);
 size_t fread(void *__restrict, size_t, size_t, FILE *__restrict);
 size_t fwrite(const void *__restrict, size_t, size_t, FILE *__restrict);
 
+int remove(const char *);
+int rename(const char *, const char *);
+
 ]]
 
 --[[
@@ -148,7 +272,18 @@ ffi.cdef[[
 	unsigned int sleep(unsigned int);
 ]]
 
+--[[
+	unistd.h
+--]]
 
+ffi.cdef[[
+uid_t geteuid(void);
+int chown(const char *, uid_t, gid_t);
+
+]]
+
+
+-- local versions of classics
 local function printf(fmt, ...)
     io.write(string.format(fmt, ...));
 end
@@ -157,6 +292,8 @@ local function fprintf(f, fmt, ...)
 	f:write(string.format(fmt, ...));
 end
 
+
+-- ffi helpers
 local function stringvalue(str, default)
 	if str == nil then
 		return default;
@@ -168,6 +305,16 @@ end
 --[[
 	Things related to epoll
 --]]
+ffi.cdef[[
+struct filedesc {
+  int fd;
+};
+
+typedef struct async_ioevent {
+  struct filedesc fdesc;
+  int eventKind;
+} async_ioevent_t;
+]]
 
 
 ffi.cdef[[
@@ -201,7 +348,7 @@ int epoll_wait (int __epfd, struct epoll_event *__events, int __maxevents, int _
 
 
 local EpollConstants = {
-    EPOLL_CLOEXEC = octal('02000000');
+    EPOLL_CLOEXEC = F.octal('02000000');
 	EPOLLIN 	= 0x0001;
 	EPOLLPRI 	= 0x0002;
 	EPOLLOUT 	= 0x0004;
@@ -346,6 +493,31 @@ local errnos = {
 
 
 
+-- non-blocking IO
+C.FIONBIO        = _IOW('f', 126, "int");		-- FIONBIO = 0x5421 
+
+-- mmap
+C.MAP_FAILED  = ffi.cast("void *", -1);
+
+C.PROT_NONE   =   0;
+C.PROT_READ   =   1;
+C.PROT_WRITE  =   2;
+C.PROT_EXEC   =   4;
+
+C.MAP_SHARED  =   0x01;
+C.MAP_PRIVATE =   0x02;
+C.MAP_FIXED   =   0x10;
+
+-- fcntl
+C.O_RDONLY	= F.octal('00000000');
+C.O_WRONLY	= F.octal('00000001');
+C.O_RDWR		= F.octal('00000002');
+C.O_NONBLOCK	= F.octal('00004000');
+C.O_CLOEXEC	= F.octal('02000000');	-- set close_on_exec
+
+
+
+
 local function strerror(num)
 	num = num or ffi.errno();
 	return getNameOfValue(num, errnos)
@@ -355,12 +527,6 @@ end
 local exports = {
 	errnos = errnos;
 
-	-- fcntl
-	O_RDONLY	= octal('00000000');
-	O_WRONLY	= octal('00000001');
-	O_RDWR		= octal('00000002');
-	O_NONBLOCK	= octal('00004000');
-	O_CLOEXEC	= octal('02000000');	-- set close_on_exec
 
 	-- ioctl
 	ioctl = ffi.C.ioctl;
@@ -374,20 +540,6 @@ local exports = {
 	_IOR = _IOR;
 	_IOW = _IOW;
 	_IOWR = _IOWR;
-
-
-	-- mmap
-	MAP_FAILED  = ffi.cast("void *", -1);
-
-	PROT_NONE   =   0;
-	PROT_READ   =   1;
-	PROT_WRITE  =   2;
-	PROT_EXEC   =   4;
-
-	MAP_SHARED  =   0x01;
-	MAP_PRIVATE =   0x02;
-	MAP_FIXED   =   0x10;
-
 
 	-- local functions
 	fprintf = fprintf;
@@ -435,7 +587,12 @@ local exports = {
 setmetatable(exports, {
 	__call = function(self, tbl)
 		tbl = tbl or _G;
+
 		for k,v in pairs(self) do
+			tbl[k] = v;
+		end;
+
+		for k,v in pairs(C) do
 			tbl[k] = v;
 		end;
 
@@ -449,6 +606,33 @@ setmetatable(exports, {
 
 		return self;
 	end,
+
+	__index = function(self, key)
+		local value = F[key]
+
+		-- look for the key in functions
+		if value then
+			rawset(self, key, value);
+			return value;
+		end
+
+		-- try the constants
+		value = C[key];
+		if value then
+			rawset(self, key, value);
+			return value;
+		end
+
+		-- try looking in the libc library
+		local success, value = pcall(function() return ffi.C[key] end)
+		if success then
+			rawset(self, key, value);
+			return value;
+		end
+
+		return nil;
+	end,
+
 })
 
 return exports

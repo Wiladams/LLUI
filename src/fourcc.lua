@@ -3,8 +3,8 @@ local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 
 --  Four-character-code (FOURCC)
+local B = string.byte;
 local function fourcc_encode(a, b, c, d)
-	local B = string.byte;
 
 	-- return a fourcc encoding of the given
 	-- components

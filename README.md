@@ -38,3 +38,14 @@ local pixman = require("LLUI.pixman")
 ```
 
 To get at the various modules you want.
+
+Things that need to be installed on your machine.  As much of this library depends on the existance of functions already on the machine, you must ensure several other libraries are already installed.  In most cases, the libraries will already be a part of the linux distributions, but on some cases, you'll need to install them if they're not already there.
+
+* libudev
+* libevdev
+* lz4
+* libpixman
+* libdrm
+* libjpeg
+* libuvc
+* libv4l2

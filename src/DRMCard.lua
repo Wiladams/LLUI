@@ -3,6 +3,7 @@ local bit = require("bit")
 local bor = bit.bor
 local band = bit.band
 
+local drm = require("drm")
 local xf86drm = require("xf86drm_ffi")()
 local xf86drmMode = require("xf86drmMode_ffi")
 local libc = require("libc")()
@@ -67,11 +68,56 @@ function DRMCard.getBusId(self)
 	return ffi.string(id);
 end
 
+
+
 function DRMCard.getVersion(self)
 	local ver =  drmGetVersion(self.Handle); -- drmVersionPtr
 	ffi.gc(ver, drmFreeVersion);
 
 	return ver;
+end
+
+
+
+
+
+function DRMCard.getDriverVersion(card)
+	local ver = ffi.new("struct drm_version");
+	ver.name = ffi.new("char[64]")
+	ver.name_len = 64;
+	ver.date = ffi.new("char[64]")
+	ver.date_len = 64;
+	ver.desc = ffi.new("char[64]")
+	ver.desc_len = 64;
+
+
+	local res = libc.ioctl(card.Handle, drm.DRM_IOCTL_VERSION, ver);
+
+	if res < 0 then
+		return nil, res;
+	end
+
+	--print("res: ", res, ver.name_len, ver.date_len, ver.desc_len)
+
+	local export = {
+		Major = ver.version_major;
+		Minor = ver.version_minor;
+		Patch = ver.version_patchlevel;
+	}
+
+	if ver.name ~= nil then
+		export.Name = ffi.string(ver.name,ver.name_len);
+	end
+
+	if ver.date ~= nil then
+		export.Date = ffi.string(ver.date, ver.date_len);
+	end
+
+	if ver.desc ~= nil then
+		export.Description = ffi.string(ver.desc, ver.desc_len);
+	end
+
+	return export
 end
 
 function DRMCard.getLibVersion(self)
@@ -80,8 +126,6 @@ function DRMCard.getLibVersion(self)
 
 	return ver;
 end
-
-
 
 
 function DRMCard.getStats(self)
