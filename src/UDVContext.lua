@@ -4,6 +4,8 @@ local libudev = require("libudev_ffi")
 local UDVListIterator = require("UDVListIterator")
 local UDVListEntry = require("UDVListEntry")
 local UDVDevice = require("UDVDevice")
+local UDVMonitor = require("UDVMonitor")
+
 
 local UDVContext = {}
 setmetatable(UDVContext, {
@@ -38,13 +40,18 @@ function UDVContext.new(self)
 	return self:init(udev)
 end
 
-function UDVContext.deviceFromSysPath(self, syspath)
-	local dev = libudev.udev_device_new_from_syspath(self.Handle, syspath)
-	if dev == nil then
-		return nil;
-	end
+function UDVContext.newFromHandle(self, handle)
+	ffi.gc(handle, libudev.udev_unref)
 
-	return UDVDevice:init(self, dev, syspath);
+	return self:init(handle);
+end
+
+function UDVContext.createMonitor(self)
+	return UDVMonitor(self);
+end
+
+function UDVContext.deviceFromSysPath(self, syspath)
+	return UDVDevice(self.Handle, syspath);
 end
 
 -- Iterators

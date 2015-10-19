@@ -206,6 +206,7 @@ local exports = {
     udev_new = Lib_udev.udev_new;
     udev_unref = Lib_udev.udev_unref;
 
+    udev_device_get_udev = Lib_udev.udev_device_get_udev;
 
     udev_device_new_from_syspath = Lib_udev.udev_device_new_from_syspath;
     udev_device_get_action = Lib_udev.udev_device_get_action;
@@ -243,13 +244,21 @@ local exports = {
 
     udev_queue_new = Lib_udev.udev_queue_new;
 
+    udev_monitor_new_from_netlink = Lib_udev.udev_monitor_new_from_netlink;
+    udev_monitor_unref = Lib_udev.udev_monitor_unref;
+    udev_monitor_enable_receiving = Lib_udev.udev_monitor_enable_receiving;
+    udev_monitor_filter_remove = Lib_udev.udev_monitor_filter_remove;
+    udev_monitor_receive_device = Lib_udev.udev_monitor_receive_device;
+    udev_monitor_get_fd = Lib_udev.udev_monitor_get_fd;
+
     -- local functions
     safeffistring = safeffistring;
 }
 setmetatable(exports, {
-  __call = function(self, ...)
+  __call = function(self, tbl)
+    tbl = tbl or _G
     for k,v in pairs(self) do
-      _G[k] = v;
+      tbl[k] = v;
     end
 
     return self;

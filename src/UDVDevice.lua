@@ -1,6 +1,9 @@
 -- UDVDevice.lua
 local libudev = require("libudev_ffi")
+
 local UDVListIterator = require("UDVListIterator")
+local libc = require("libc")
+
 
 local UDVDevice = {}
 setmetatable(UDVDevice, {
@@ -14,9 +17,11 @@ local UDVDevice_mt = {
 
 
 
-function UDVDevice.init(self, ctxt, handle, syspath)
+function UDVDevice.init(self, handle)
+	--local ctxt = UDVContext(libudev.udev_device_get_udev(handle))
+
 	local obj = {
-		Context = ctxt;
+		--Context = ctxt;
 		Handle = handle;
 
 		Name = syspath;
@@ -32,18 +37,28 @@ function UDVDevice.init(self, ctxt, handle, syspath)
 		
 		IsInitialized = libudev.udev_device_get_is_initialized(handle)==1;
 	}
+	obj.Name = obj.SysPath;
+
 	setmetatable(obj, UDVDevice_mt)
 
 	return obj;
 end
 
 function UDVDevice.new(self, ctxt, syspath)
-	local dev = libudev.udev_device_new_from_syspath(ctxt.Handle, syspath)
+	local dev = libudev.udev_device_new_from_syspath(ctxt, syspath)
 	if dev == nil then
 		return nil;
 	end
 
-	return self:init(ctx, handle, syspath)
+	return self:init(dev)
+end
+
+function UDVDevice.newFromHandle(self, device_handle)
+	return self:init(device_handle);
+end
+
+function UDVDevice.action(self)
+	return libc.safeffistring(libudev.udev_device_get_action(self.Handle));
 end
 
 -- iterate over all the properties of the device
