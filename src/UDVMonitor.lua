@@ -50,7 +50,8 @@ end
 
 -- Blocking call waiting for something to happen to a device
 function UDVMonitor.receiveDevice(self)
-	return UDVDevice:newFromHandle(udev.udev_monitor_receive_device(self.Handle));
+	local dev_handle = udev.udev_monitor_receive_device(self.Handle)
+	--return UDVDevice:newFromHandle(udev.udev_monitor_receive_device(self.Handle));
 end
 
 

@@ -21,10 +21,8 @@ function UDVDevice.init(self, handle)
 	--local ctxt = UDVContext(libudev.udev_device_get_udev(handle))
 
 	local obj = {
-		--Context = ctxt;
 		Handle = handle;
 
-		Name = syspath;
 		DevPath = libudev.safeffistring(libudev.udev_device_get_devpath(handle));		
 		Subsystem = libudev.safeffistring(libudev.udev_device_get_subsystem(handle));		
 		DevType = libudev.safeffistring(libudev.udev_device_get_devtype(handle));		

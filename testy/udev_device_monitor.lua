@@ -12,6 +12,8 @@ local udev = require("libudev_ffi")
 
 local ctxt, err = require("UDVContext")()
 assert(ctxt ~= nil, "Error creating context")
+local UDVDevice = require("UDVDevice")
+
 
 local function main()
 	local monitor = ctxt:createMonitor();
@@ -19,7 +21,9 @@ local function main()
 	while(true) do
 		local dev = monitor:receiveDevice();
 		if dev ~= nil then
-			print(dev, dev:action());
+			print(dev)
+			--print(dev, dev:action());
+			--local device = UDVDevice:newFromHandle(dev);
 		end
 	end
 end

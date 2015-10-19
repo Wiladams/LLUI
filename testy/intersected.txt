@@ -1,0 +1,7 @@
+DEVNAME	true
+USEC_INITIALIZED	true
+DEVTYPE	true
+MAJOR	true
+DEVPATH	true
+MINOR	true
+SUBSYSTEM	true
