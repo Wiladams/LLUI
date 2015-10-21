@@ -6,6 +6,7 @@
 
 package.path = package.path..";../src/?.lua"
 
+local kernel = require("kernel")
 local fun = require("fun")()
 local utils = require("udev_utils")
 
@@ -18,4 +19,4 @@ local function main()
 	print("}")
 end
 
-main()
+run(main)
