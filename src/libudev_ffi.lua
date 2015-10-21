@@ -1,6 +1,9 @@
 
 local ffi = require("ffi")
 
+local Lib_udev = ffi.load("udev")
+
+local Types = {}
 
 -- core types
 ffi.cdef[[
@@ -189,18 +192,9 @@ int udev_util_encode_string(const char *str, char *str_enc, size_t len);
 ]]
 
 
-local function safeffistring(str)
-    if str == nil then
-        return nil;
-    end
-
-    return ffi.string(str);
-end
-
-local Lib_udev = ffi.load("udev")
-
-local exports = {
-    Lib_udev = Lib_udev;  
+-- If you want to pre-assign functions, you can
+-- use the following table
+local Functions = {
 
     -- library functions
     udev_new = Lib_udev.udev_new;
@@ -250,10 +244,13 @@ local exports = {
     udev_monitor_filter_remove = Lib_udev.udev_monitor_filter_remove;
     udev_monitor_receive_device = Lib_udev.udev_monitor_receive_device;
     udev_monitor_get_fd = Lib_udev.udev_monitor_get_fd;
-
-    -- local functions
-    safeffistring = safeffistring;
 }
+
+
+local exports = {
+    Lib_udev = Lib_udev;  
+}
+
 setmetatable(exports, {
   __call = function(self, tbl)
     tbl = tbl or _G
@@ -261,8 +258,24 @@ setmetatable(exports, {
       tbl[k] = v;
     end
 
+    for k,v in pairs(Functions) do 
+        tbl[k] = v;
+    end
+
     return self;
   end,
+
+    __index = function(self, key)
+
+        -- try looking in the libudev library
+        local success, value = pcall(function() return Lib_udev[key] end)
+        if success then
+            rawset(self, key, value);
+            return value;
+        end
+
+        return nil;
+    end,
 })
 
 return exports

@@ -4,8 +4,9 @@ local bit = require("bit")
 local band, bor = bit.band, bit.bor
 local lshift, rshift = bit.lshift, bit.rshift
 
-local C = {}
-local F = {}
+local C = {}	-- Constants
+local F = {}	-- Functions
+local Types = {} -- Types
 
 -- utility functions
 function F.octal(val)
@@ -83,14 +84,14 @@ local function _IOC(a,b,c,d)
   return ioc(a,b,c,d);
 end
 
-local _IOC_NONE  = 0;
-local _IOC_WRITE = 1;
-local _IOC_READ  = 2;
+C._IOC_NONE  = 0;
+C._IOC_WRITE = 1;
+C._IOC_READ  = 2;
 
-local function _IO(a,b) return _IOC(_IOC_NONE,a,b,0) end
-local function _IOW(a,b,c) return _IOC(_IOC_WRITE,a,b,ffi.sizeof(c)) end
-local function _IOR(a,b,c) return _IOC(_IOC_READ,a,b,ffi.sizeof(c)) end
-local function _IOWR(a,b,c) return _IOC(bor(_IOC_READ,_IOC_WRITE),a,b,ffi.sizeof(c)) end
+function F._IO(a,b) return _IOC(C._IOC_NONE,a,b,0) end
+function F._IOW(a,b,c) return _IOC(C._IOC_WRITE,a,b,ffi.sizeof(c)) end
+function F._IOR(a,b,c) return _IOC(C._IOC_READ,a,b,ffi.sizeof(c)) end
+function F._IOWR(a,b,c) return _IOC(bor(C._IOC_READ,C._IOC_WRITE),a,b,ffi.sizeof(c)) end
 
 
 ffi.cdef[[
@@ -233,6 +234,86 @@ ffi.cdef[[
 	int write(int fd, char *buffer, unsigned int length);
 ]]
 
+-- the iodesc type gives an easy place to hang things
+-- related to a file descriptor.  Primarily it keeps the 
+-- basic file descriptor.  
+-- It also performs the async read/write operations
+
+ffi.cdef[[
+struct iodesc {
+  int fd;
+};
+
+struct ioevent {
+  struct iodesc desc;
+  int eventKind;
+};
+]]
+
+C.IO_READ = 1;
+C.IO_WRITE = 2;
+C.IO_CONNECT = 3;
+
+local iodesc = ffi.typeof("struct iodesc")
+local iodesc_mt = {
+    __new = function(ct, fd)
+        local obj = ffi.new(ct, fd);
+
+        return obj;
+    end;
+
+    __gc = function(self)
+        if self.fd > -1 then
+            self:close();
+        end
+    end;
+
+    __index = {
+        close = function(self)
+            ffi.C.close(self.fd);
+            self.fd = -1; -- make it invalid
+        end,
+
+        read = function(self, buff, bufflen)
+            local bytes = tonumber(ffi.C.read(self.fd, buff, bufflen));
+
+            if bytes > 0 then
+                return bytes;
+            end
+
+            if bytes == 0 then
+              return 0;
+            end
+
+            return false, ffi.errno();
+        end,
+
+        write = function(self, buff, bufflen)
+            local bytes = tonumber(ffi.C.write(self.fd, buff, bufflen));
+
+            if bytes > 0 then
+                return bytes;
+            end
+
+            if bytes == 0 then
+              return 0;
+            end
+
+            return false, ffi.errno();
+        end,
+
+        setNonBlocking = function(self)
+            local feature_on = ffi.new("int[1]",1)
+            local ret = ffi.C.ioctl(self.fd, C.FIONBIO, feature_on)
+            return ret == 0;
+        end,
+
+    };
+}
+ffi.metatype(iodesc, iodesc_mt);
+Types.iodesc = iodesc;
+
+
 --[[
 	Stream Management
 --]]
@@ -284,17 +365,17 @@ int chown(const char *, uid_t, gid_t);
 
 
 -- local versions of classics
-local function printf(fmt, ...)
+function F.printf(fmt, ...)
     io.write(string.format(fmt, ...));
 end
 
-local function fprintf(f, fmt, ...)
+function F.fprintf(f, fmt, ...)
 	f:write(string.format(fmt, ...));
 end
 
 
 -- ffi helpers
-local function stringvalue(str, default)
+function F.stringvalue(str, default)
 	if str == nil then
 		return default;
 	end
@@ -302,20 +383,11 @@ local function stringvalue(str, default)
 	return ffi.string(str)
 end
 
+F.safeffistring = F.stringvalue;
+
 --[[
 	Things related to epoll
 --]]
-ffi.cdef[[
-struct filedesc {
-  int fd;
-};
-
-typedef struct async_ioevent {
-  struct filedesc fdesc;
-  int eventKind;
-} async_ioevent_t;
-]]
-
 
 ffi.cdef[[
 typedef union epoll_data {
@@ -372,7 +444,7 @@ local EpollConstants = {
 	EPOLL_CTL_DEL =2;	-- Remove a file descriptor from the interface.
 	EPOLL_CTL_MOD =3;	-- Change file descriptor epoll_event structure.
 }
-
+C.epoll = EpollConstants;
 
 ffi.cdef[[
 typedef struct _epollset {
@@ -445,7 +517,7 @@ local epollset_mt = {
 	};
 }
 ffi.metatype(epollset, epollset_mt);
-
+Types.epollset = epollset;
 
 
 local errnos = {
@@ -486,15 +558,120 @@ local errnos = {
 	EDOM		=33	; -- Math argument out of domain of func 
 	ERANGE		=34	; -- Math result not representable 
 
-	-- errno
-	EOPNOTSUPP	= 95;	-- Operation not supported on transport endpoint
-	
-}
+    EDEADLK 	= 35;  -- Resource deadlock would occur 
+    ENAMETOOLONG = 36;  -- File name too long 
+    ENOLCK 		= 37;  -- No record locks available 
+    ENOSYS 		= 38;  -- Function not implemented 
+    ENOTEMPTY 	= 39;  -- Directory not empty 
+    ELOOP 		= 40;  -- Too many symbolic links encountered 
+    EWOULDBLOCK =    11;	-- EAGAIN;  -- Operation would block 
+    ENOMSG 		= 42;  -- No message of desired type 
+    EIDRM 		= 43;  -- Identifier removed 
+    ECHRNG 		= 44;  -- Channel number out of range 
+    EL2NSYNC 	= 45;  -- Level 2 not synchronized 
+    EL3HLT 		= 46;  -- Level 3 halted 
+    EL3RST 		= 47;  -- Level 3 reset 
+    ELNRNG 		= 48;  -- Link number out of range 
+    EUNATCH 	= 49;  -- Protocol driver not attached 
+    ENOCSI 		= 50;  -- No CSI structure available 
+    EL2HLT = 51;  -- Level 2 halted 
+    EBADE = 52;  -- Invalid exchange 
+    EBADR = 53;  -- Invalid request descriptor 
+    EXFULL = 54;  -- Exchange full 
+    ENOANO = 55;  -- No anode 
+    EBADRQC = 56;  -- Invalid request code 
+    EBADSLT = 57;  -- Invalid slot 
 
+    EDEADLOCK  =     35; 	-- EDEADLK;
+
+    EBFONT = 59;  -- Bad font file format 
+    ENOSTR = 60;  -- Device not a stream 
+    ENODATA = 61;  -- No data available 
+    ETIME = 62;  -- Timer expired 
+    ENOSR = 63;  -- Out of streams resources 
+    ENONET = 64;  -- Machine is not on the network 
+    ENOPKG = 65;  -- Package not installed 
+    EREMOTE = 66;  -- Object is remote 
+    ENOLINK = 67;  -- Link has been severed 
+    EADV = 68;  -- Advertise error 
+    ESRMNT = 69;  -- Srmount error 
+    ECOMM = 70;  -- Communication error on send 
+    EPROTO = 71;  -- Protocol error 
+    EMULTIHOP = 72;  -- Multihop attempted 
+    EDOTDOT = 73;  -- RFS specific error 
+    EBADMSG = 74;  -- Not a data message 
+    EOVERFLOW = 75;  -- Value too large for defined data type 
+    ENOTUNIQ = 76;  -- Name not unique on network 
+    EBADFD = 77;  -- File descriptor in bad state 
+    EREMCHG = 78;  -- Remote address changed 
+    ELIBACC = 79;  -- Can not access a needed shared library 
+    ELIBBAD = 80;  -- Accessing a corrupted shared library 
+    ELIBSCN = 81;  -- .lib section in a.out corrupted 
+    ELIBMAX = 82;  -- Attempting to link in too many shared libraries 
+    ELIBEXEC = 83;  -- Cannot exec a shared library directly 
+    EILSEQ = 84;  -- Illegal byte sequence 
+    ERESTART = 85;  -- Interrupted system call should be restarted 
+    ESTRPIPE = 86;  -- Streams pipe error 
+    EUSERS = 87;  -- Too many users 
+    ENOTSOCK = 88;  -- Socket operation on non-socket 
+    EDESTADDRREQ = 89;  -- Destination address required 
+    EMSGSIZE = 90;  -- Message too long 
+    EPROTOTYPE = 91;  -- Protocol wrong type for socket 
+    ENOPROTOOPT = 92;  -- Protocol not available 
+    EPROTONOSUPPORT = 93;  -- Protocol not supported 
+    ESOCKTNOSUPPORT = 94;  -- Socket type not supported 
+    EOPNOTSUPP = 95;  -- Operation not supported on transport endpoint 
+    EPFNOSUPPORT = 96;  -- Protocol family not supported 
+    EAFNOSUPPORT = 97;  -- Address family not supported by protocol 
+    EADDRINUSE = 98;  -- Address already in use 
+    EADDRNOTAVAIL = 99;  -- Cannot assign requested address 
+    ENETDOWN = 100;  -- Network is down 
+    ENETUNREACH = 101;  -- Network is unreachable 
+    ENETRESET = 102;  -- Network dropped connection because of reset 
+    ECONNABORTED = 103;  -- Software caused connection abort 
+    ECONNRESET = 104;  -- Connection reset by peer 
+    ENOBUFS = 105;  -- No buffer space available 
+    EISCONN = 106;  -- Transport endpoint is already connected 
+    ENOTCONN = 107;  -- Transport endpoint is not connected 
+    ESHUTDOWN = 108;  -- Cannot send after transport endpoint shutdown 
+    ETOOMANYREFS = 109;  -- Too many references: cannot splice 
+    ETIMEDOUT = 110;  -- Connection timed out 
+    ECONNREFUSED = 111;  -- Connection refused 
+    EHOSTDOWN = 112;  -- Host is down 
+    EHOSTUNREACH = 113;  -- No route to host 
+    EALREADY = 114;  -- Operation already in progress 
+    EINPROGRESS = 115;  -- Operation now in progress 
+    ESTALE = 116;  -- Stale file handle 
+    EUCLEAN = 117;  -- Structure needs cleaning 
+    ENOTNAM = 118;  -- Not a XENIX named type file 
+    ENAVAIL = 119;  -- No XENIX semaphores available 
+    EISNAM = 120;  -- Is a named type file 
+    EREMOTEIO = 121;  -- Remote I/O error 
+    EDQUOT = 122;  -- Quota exceeded 
+
+    ENOMEDIUM = 123;  -- No medium found 
+    EMEDIUMTYPE = 124;  -- Wrong medium type 
+    ECANCELED = 125;  -- Operation Canceled 
+    ENOKEY = 126;  -- Required key not available 
+    EKEYEXPIRED = 127;  -- Key has expired 
+    EKEYREVOKED = 128;  -- Key has been revoked 
+    EKEYREJECTED = 129;  -- Key was rejected by service 
+
+-- for robust mutexes 
+    EOWNERDEAD = 130;  -- Owner died 
+    ENOTRECOVERABLE = 131;  -- State not recoverable 
+
+    ERFKILL = 132;  -- Operation not possible due to RF-kill 
+
+    EHWPOISON = 133;  -- Memory page has hardware error 
+
+
+}
+C.errnos = errnos;
 
 
 -- non-blocking IO
-C.FIONBIO        = _IOW('f', 126, "int");		-- FIONBIO = 0x5421 
+C.FIONBIO        = F._IOW('f', 126, "int");		-- FIONBIO = 0x5421 
 
 -- mmap
 C.MAP_FAILED  = ffi.cast("void *", -1);
@@ -518,37 +695,36 @@ C.O_CLOEXEC	= F.octal('02000000');	-- set close_on_exec
 
 
 
-local function strerror(num)
+function F.strerror(num)
 	num = num or ffi.errno();
 	return getNameOfValue(num, errnos)
 end
 
 
-local exports = {
-	errnos = errnos;
-
-
-	-- ioctl
-	ioctl = ffi.C.ioctl;
-	
+local exports = {	
+--[[
 	_IOC_NONE = _IOC_NONE;
 	_IOC_READ = _IOC_READ;
 	_IOC_WRITE = _IOC_WRITE;
 
+
+	-- local functions
 	_IOC = _IOC;
 	_IO = _IO;
 	_IOR = _IOR;
 	_IOW = _IOW;
 	_IOWR = _IOWR;
 
-	-- local functions
+
 	fprintf = fprintf;
 	printf = printf;
 	strerror = strerror;
 	stringvalue = stringvalue;
 	safeffistring = stringvalue;
 	getValueName = getNameOfValue;
-	
+--]]
+
+--[[
 	-- Memory Management
 	free = ffi.C.free;
 	malloc = ffi.C.malloc;
@@ -575,10 +751,10 @@ local exports = {
 	sleep = ffi.C.sleep;
 	usleep = ffi.C.usleep;
 	time = ffi.C.time;
+--]]
 
 	-- epoll related
-	epollset = epollset;
-	EpollConstants = EpollConstants;
+--	epollset = epollset;
 }
 
 
@@ -593,24 +769,22 @@ setmetatable(exports, {
 		end;
 
 		for k,v in pairs(C) do
-			tbl[k] = v;
+			if type(v) == "table" then
+				for key, value in pairs(v) do 
+					tbl[key] = value;
+				end
+			else
+				tbl[k] = v;
+			end
 		end;
-
-		for k,v in pairs(errnos) do
-			tbl[k] =  v;
-		end
-
-		for k,v in pairs(EpollConstants) do
-			tbl[k] = v;
-		end
 
 		return self;
 	end,
 
 	__index = function(self, key)
-		local value = F[key]
 
-		-- look for the key in functions
+		-- look for the key in the local functions
+		local value = F[key]
 		if value then
 			rawset(self, key, value);
 			return value;
@@ -618,6 +792,13 @@ setmetatable(exports, {
 
 		-- try the constants
 		value = C[key];
+		if value then
+			rawset(self, key, value);
+			return value;
+		end
+
+		-- try looking in the types
+		value = Types[key]
 		if value then
 			rawset(self, key, value);
 			return value;

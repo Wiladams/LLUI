@@ -11,13 +11,13 @@
 --]]
 local ffi = require("ffi")
 local libudev = require("libudev_ffi")
-
+local libc = require("libc")
 
 
 local function UDVListEntry(entry)
 	return {
-		Name = libudev.safeffistring(libudev.udev_list_entry_get_name(entry));
-		Value = libudev.safeffistring(libudev.udev_list_entry_get_value(entry));
+		Name = libc.safeffistring(libudev.udev_list_entry_get_name(entry));
+		Value = libc.safeffistring(libudev.udev_list_entry_get_value(entry));
 	}
 end
 

@@ -27,7 +27,7 @@ function UDVMonitor.init(self, mon)
 	--udev.udev_monitor_filter_remove(mon);
 
 	-- turn on receiving
-	obj:enableReceiving();
+	--obj:enableReceiving();
 
 	return obj;
 end
@@ -43,16 +43,38 @@ function UDVMonitor.new(self, ctxt)
 	return self:init(mon);
 end
 
-function UDVMonitor.enableReceiving(self)
+function UDVMonitor.start(self)
 	local res = udev.udev_monitor_enable_receiving(self.Handle);
 	return res == 0;
 end
 
 -- Blocking call waiting for something to happen to a device
 function UDVMonitor.receiveDevice(self)
-	local dev_handle = udev.udev_monitor_receive_device(self.Handle)
-	--return UDVDevice:newFromHandle(udev.udev_monitor_receive_device(self.Handle));
+	local dev_handle = nil;
+
+	repeat
+		dev_handle = udev.udev_monitor_receive_device(self.Handle)
+	until dev_handle ~= nil;
+
+	--print("UDVMonitor.receiveDevice: ", dev_handle)
+
+	local dev = UDVDevice:newFromHandle(dev_handle);
+
+	return dev;
 end
 
+-- An iterator over the events 
+function UDVMonitor.events(self)
+	local function event_gen(param, state)
+		local dev_handle = nil;
+		repeat 
+			dev_handle = udev.udev_monitor_receive_device(param.Handle)
+		until dev_handle ~= nil;
+
+		return state, UDVDevice:newFromHandle(dev_handle)
+	end
+
+	return event_gen, self, self
+end
 
 return UDVMonitor

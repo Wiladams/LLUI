@@ -19,19 +19,20 @@ local UDVDevice_mt = {
 
 function UDVDevice.init(self, handle)
 	--local ctxt = UDVContext(libudev.udev_device_get_udev(handle))
+	--print("UDVDevice.init: ", handle)
 
 	local obj = {
 		Handle = handle;
 
-		DevPath = libudev.safeffistring(libudev.udev_device_get_devpath(handle));		
-		Subsystem = libudev.safeffistring(libudev.udev_device_get_subsystem(handle));		
-		DevType = libudev.safeffistring(libudev.udev_device_get_devtype(handle));		
-		SysPath = libudev.safeffistring(libudev.udev_device_get_syspath(handle));		
-		SysName = libudev.safeffistring(libudev.udev_device_get_sysname(handle));		
-		SysNum = libudev.safeffistring(libudev.udev_device_get_sysnum(handle));		
-		DevNode = libudev.safeffistring(libudev.udev_device_get_devnode(handle));		
-		Driver = libudev.safeffistring(libudev.udev_device_get_driver(handle));
-		Action = libudev.safeffistring(libudev.udev_device_get_action(handle));
+		DevPath = libc.safeffistring(libudev.udev_device_get_devpath(handle));		
+		Subsystem = libc.safeffistring(libudev.udev_device_get_subsystem(handle));		
+		DevType = libc.safeffistring(libudev.udev_device_get_devtype(handle));		
+		SysPath = libc.safeffistring(libudev.udev_device_get_syspath(handle));		
+		SysName = libc.safeffistring(libudev.udev_device_get_sysname(handle));		
+		SysNum = libc.safeffistring(libudev.udev_device_get_sysnum(handle));		
+		DevNode = libc.safeffistring(libudev.udev_device_get_devnode(handle));		
+		Driver = libc.safeffistring(libudev.udev_device_get_driver(handle));
+		Action = libc.safeffistring(libudev.udev_device_get_action(handle));
 		
 		IsInitialized = libudev.udev_device_get_is_initialized(handle)==1;
 	}
