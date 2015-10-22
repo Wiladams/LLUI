@@ -17,6 +17,8 @@ local function main()
 	print("{")
 	each(utils.printDevice, ctxt:devices())
 	print("}")
+
+	halt();
 end
 
 run(main)
