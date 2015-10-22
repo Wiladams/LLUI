@@ -52,6 +52,7 @@ typedef uint32_t __useconds_t;
 typedef __useconds_t useconds_t;
 typedef long suseconds_t;
 typedef long time_t;
+typedef int32_t       clockid_t;
 
 typedef int64_t off_t;
 typedef uint16_t      mode_t;
@@ -60,7 +61,74 @@ typedef long ssize_t;
 struct timeval { time_t tv_sec; suseconds_t tv_usec; };
 struct timespec { time_t tv_sec; long tv_nsec; };
 
+int clock_getres(clockid_t clk_id, struct timespec *res);
+int clock_gettime(clockid_t clk_id, struct timespec *tp);
+int clock_settime(clockid_t clk_id, const struct timespec *tp);
+int clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *request, struct timespec *remain);
+
+static const int CLOCK_REALTIME         = 0;
+static const int CLOCK_MONOTONIC            = 1;
+static const int CLOCK_PROCESS_CPUTIME_ID   = 2;
+static const int CLOCK_THREAD_CPUTIME_ID    = 3;
+static const int CLOCK_MONOTONIC_RAW        = 4;
+static const int CLOCK_REALTIME_COARSE      = 5;
+static const int CLOCK_MONOTONIC_COARSE = 6;
+static const int CLOCK_BOOTTIME         = 7;
+static const int CLOCK_REALTIME_ALARM       = 8;
+static const int CLOCK_BOOTTIME_ALARM       = 9;
+static const int CLOCK_SGI_CYCLE            = 10;   // Hardware specific 
+static const int CLOCK_TAI                  = 11;
 ]]
+
+
+
+Types.timespec = ffi.typeof("struct timespec")
+local timespec_mt = {
+	__add = function(lhs, rhs)
+		local newspec = timespec(lhs.tv_sec+rhs.tv_sec, lhs.tv_nsec+rhs.tv_nsec);
+		return newspec;
+	end;
+
+	__sub = function(lhs, rhs)
+		local newspec = timespec(lhs.tv_sec-rhs.tv_sec, lhs.tv_nsec-rhs.tv_nsec);
+		return newspec;
+	end;	
+
+	__tostring = function(self)
+		return string.format("%d.%d", tonumber(self.tv_sec), tonumber(self.tv_nsec));
+	end;
+
+	__index = {
+		gettime = function(self, clockid)
+			clockid = clockid or ffi.C.CLOCK_REALTIME;
+			local res = ffi.C.clock_gettime(clockid, self)
+			return res;
+		end;
+		
+		getresolution = function(self, clockid)
+			clockid = clockid or ffi.C.CLOCK_REALTIME;
+			local res = ffi.C.clock_getres(clockid, self);
+			return res;
+		end;
+
+		setFromSeconds = function(self, seconds)
+			-- the seconds without fraction can become tv_sec
+			local secs, frac = math.modf(seconds)
+			local nsecs = frac * 1000000000;
+			self.tv_sec = secs;
+			self.tv_nsec = nsecs;
+
+			return true;
+		end;
+
+		seconds = function(self)
+			return tonumber(self.tv_sec) + (tonumber(self.tv_nsec) / 1000000000);	-- one billion'th of a second
+		end;
+
+	};
+}
+ffi.metatype(Types.timespec, timespec_mt)
+
 
 -- ioctl related
 -- very x86_64 specific
@@ -97,6 +165,17 @@ function F._IOWR(a,b,c) return _IOC(bor(C._IOC_READ,C._IOC_WRITE),a,b,ffi.sizeof
 ffi.cdef[[
 int ioctl (int, int, ...);
 ]]
+
+function F.xioctl(fd, request, param)
+    local r;
+
+    repeat 
+        r = libc.ioctl(fd, request, param);
+    until (-1 ~= r or (libc.errnos.EINTR ~= ffi.errno()));
+
+    return r;
+end
+
 
 --[[
 	stat() related
@@ -153,33 +232,33 @@ int utimensat(int, const char *, const struct timespec [2], int);
 ]]
 
 
-	C.S_IFMT   = F.octal(00170000);
-	C.S_IFSOCK = F.octal(0140000);
-	C.S_IFLNK  = F.octal(0120000);
-	C.S_IFREG  = F.octal(0100000);
-	C.S_IFBLK  = F.octal(0060000);
-	C.S_IFDIR  = F.octal(0040000);
-	C.S_IFCHR  = F.octal(0020000);
-	C.S_IFIFO  = F.octal(0010000);
-	C.S_ISUID  = F.octal(0004000);
-	C.S_ISGID  = F.octal(0002000);
-	C.S_ISVTX  = F.octal(0001000);
+	C.S_IFMT   = F.octal('00170000');
+	C.S_IFSOCK = F.octal('0140000');
+	C.S_IFLNK  = F.octal('0120000');
+	C.S_IFREG  = F.octal('0100000');
+	C.S_IFBLK  = F.octal('0060000');
+	C.S_IFDIR  = F.octal('0040000');
+	C.S_IFCHR  = F.octal('0020000');
+	C.S_IFIFO  = F.octal('0010000');
+	C.S_ISUID  = F.octal('0004000');
+	C.S_ISGID  = F.octal('0002000');
+	C.S_ISVTX  = F.octal('0001000');
 
 
-	C.S_IRWXU = F.octal(00700);
-	C.S_IRUSR = F.octal(00400);
-	C.S_IWUSR = F.octal(00200);
-	C.S_IXUSR = F.octal(00100);
+	C.S_IRWXU = F.octal('00700');
+	C.S_IRUSR = F.octal('00400');
+	C.S_IWUSR = F.octal('00200');
+	C.S_IXUSR = F.octal('00100');
 
-	C.S_IRWXG = F.octal(00070);
-	C.S_IRGRP = F.octal(00040);
-	C.S_IWGRP = F.octal(00020);
-	C.S_IXGRP = F.octal(00010);
+	C.S_IRWXG = F.octal('00070');
+	C.S_IRGRP = F.octal('00040');
+	C.S_IWGRP = F.octal('00020');
+	C.S_IXGRP = F.octal('00010');
 
-	C.S_IRWXO = F.octal(00007);
-	C.S_IROTH = F.octal(00004);
-	C.S_IWOTH = F.octal(00002);
-	C.S_IXOTH = F.octal(00001);
+	C.S_IRWXO = F.octal('00007');
+	C.S_IROTH = F.octal('00004');
+	C.S_IWOTH = F.octal('00002');
+	C.S_IXOTH = F.octal('00001');
 
 local _STAT_VER_KERNEL	= 0;
 local _STAT_VER_LINUX	= 1;

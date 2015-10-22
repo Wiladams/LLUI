@@ -1,8 +1,8 @@
 -- There should be only one instance of this code
 -- running for a given lua state
 
-
-
+local ffi = require("ffi")
+local libc = require("libc")
 
 --[[
 	Queue
@@ -158,8 +158,91 @@ end
 
 
 
+--[[
+	Cooperative IO (cio)
+--]]
+local cio_EventQuanta = 1;
+local cio_ContinueRunning = true;
+local cio_EPollSet = libc.epollset();
+local cio_MaxEvents = 100;		-- number of events we'll ask per quanta
+local cio_Events = ffi.new("struct epoll_event[?]", cio_MaxEvents);
 
+local cio_READ = 1;
+local cio_WRITE = 2;
+local cio_CONNECT = 3;
+
+local cio = {}
+
+
+function cio_sigNameFromEvent(event, title)
+	title = title or "";
+	local fdesc = ffi.cast("iodesc *", event.data.ptr);
+	--print("sigNameFromEvent, fdesc: ", fdesc)
+	local fd = fdesc.fd;
+	--print("  fd: ", fd);
+
+	local str = "waitforio-"..tfd;
+	
+	return str;
+end
+
+
+function cio_setEventQuanta(quanta)
+	cio_EventQuanta = quanta;
+end
+
+function cio_getNextOperationId()
+	cio_OperationId = cio_OperationId + 1;
+	return cio_OperationId;
+end
+
+-- The watchdog() routine is the regular task that will
+-- always be calling epoll_wait when it gets a chance
+-- and signaling the appropriate tasks when they have events
+local function cio_watchdog()
+	while cio_ContinueRunning do
+		local available, err = cio_EPollSet:wait(cio_Events, cio_MaxEvents, cio_EventQuanta);
+
+
+		if available then
+			if available > 0 then
+			    for idx=0,available-1 do
+			    	local ptr = ffi.cast("struct epoll_event *", ffi.cast("char *", self.Events)+ffi.sizeof("struct epoll_event")*idx);
+			    	--print("watchdog, ptr.data.ptr: ", ptr, ptr.data.ptr);
+				    local sigName = cio_sigNameFromEvent(ptr);
+				    signalAll(sigName, cio_Events[idx].events);
+			    end
+			else
+				--print("NO EVENTS AVAILABLE")
+			end
+		else 
+			print("cio_watchdog, error from EPollSet:wait(): ", available, err)
+		end
+
+		yield();
+	end
+end
+
+local function watchForIOEvents(fdesc, event)
+	return cio_EPollSet:add(fdesc.fd, event);
+end
+
+local function waitForIOEvent(fdesc, event, title)
+	local success, err = cio_EPollSet:modify(fdesc.fd, event);
+	local sigName = cio_sigNameFromEvent(event, title);
+
+--print("\nAsyncIO.waitForIOEvent(), waiting for: ", sigName)
+
+	return waitForSignal(sigName);
+end
+
+
+
+
+
+--[[
 -- kernel state
+--]]
 local 	ContinueRunning = true;
 local 	TaskID = 0;
 local	TasksSuspendedForSignal = {};
@@ -381,6 +464,9 @@ end
 
 
 local function run(func, ...)
+	-- start cooperative io module
+	spawn(cio_watchdog)
+
 	if func ~= nil then
 		spawn(func, ...)
 	end
@@ -390,24 +476,39 @@ local function run(func, ...)
 	end
 end
 
-local function halt(self)
+local function halt()
+	cio_ContinueRunning = false;
 	ContinueRunning = false;
 end
+
+
+
+
+
+
+
+
+
 
 local exports = {
 	halt = halt;
 
     run = run;
 
+    -- scheduling
     spawn = spawn;
     suspend = suspend;
     yield = yield;
     
+    -- signals/events
     onSignal = onSignal;
     signalAll = signalAll;
     signalOne = signalOne;
     waitForSignal = waitForSignal;
 
+    -- cio
+    watchForIOEvents = watchForIOEvents;
+    waitForIOEvent = waitForIOEvent;
 }
 
 -- put everything into the global namespace by default

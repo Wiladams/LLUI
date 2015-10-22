@@ -7,15 +7,7 @@ local libc = require("libc")
 local vd2 = require("videodev2")
 
 
-local function xioctl(fd, request, param)
-    local r;
 
-    repeat 
-        r = libc.ioctl(fd, request, param);
-    until (-1 ~= r or (libc.errnos.EINTR ~= ffi.errno()));
-
-    return r;
-end
 
 
 local V4LCamera = {}
@@ -35,7 +27,7 @@ local V4LCamera_mt = {
 function V4LCamera.init(self, fd, dev_name)
 
     local cap = ffi.new("struct v4l2_capability");
-    if (-1 == xioctl(fd, vd2.Constants.VIDIOC_QUERYCAP, cap)) then
+    if (-1 == libc.xioctl(fd, vd2.Constants.VIDIOC_QUERYCAP, cap)) then
         if (libc.errnos.EINVAL == ffi.errno() or (libc.errnos.ENOTTY == ffi.errno())) then
             io.stderr:write(string.format("%s is no V4L2 device\n", self.DevNode));
             return nil
@@ -53,8 +45,6 @@ function V4LCamera.init(self, fd, dev_name)
 		Bus = ffi.string(cap.bus_info);
 	}
 	setmetatable(obj, V4LCamera_mt)
-
-
 
 	return obj;
 end
@@ -101,7 +91,7 @@ function V4LCamera.capabilities(self)
     local crop = ffi.new("struct v4l2_crop");
     local fmt = ffi.new("struct v4l2_format");
     
-    if (-1 == xioctl(self.Handle, vd2.Constants.VIDIOC_QUERYCAP, cap)) then
+    if (-1 == libc.xioctl(self.Handle, vd2.Constants.VIDIOC_QUERYCAP, cap)) then
         if (libc.errnos.EINVAL == ffi.errno() or (libc.errnos.ENOTTY == ffi.errno())) then
             io.stderr:write(string.format("%s is no V4L2 device\n", self.DevNode));
             error();
