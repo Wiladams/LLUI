@@ -30,7 +30,7 @@ function cio.init(self, fd)
     -- assumes kernel is already running
     -- tell the system we're interested in 
     -- monitoring this file descriptor
-    watchForIOEvents(obj.fdesc, obj.WatchdogEvent);
+    print("cio.init() ", watchForIOEvents(obj.fdesc, obj.WatchdogEvent));
 
 
     -- create a couple more event kinds so that we can 
@@ -60,10 +60,10 @@ end
 
 local int = ffi.typeof("int")
 
-function cio.open(self, filename, state, flags)
-    flags = flags or int(0);
-    local fd = libc.open(filename, state, flags);
-
+function cio.open(self, filename, flags, extra)
+    extra = extra or int(0);
+    local fd = libc.open(filename, flags, extra);
+print("cio.open() - ", fd);
     return self:init(fd);
 end
 

@@ -176,12 +176,12 @@ local cio = {}
 
 function cio_sigNameFromEvent(event, title)
 	title = title or "";
-	local fdesc = ffi.cast("iodesc *", event.data.ptr);
+	local fdesc = ffi.cast("struct iodesc *", event.data.ptr);
 	--print("sigNameFromEvent, fdesc: ", fdesc)
 	local fd = fdesc.fd;
 	--print("  fd: ", fd);
 
-	local str = "waitforio-"..tfd;
+	local str = "waitforio-"..fd;
 	
 	return str;
 end

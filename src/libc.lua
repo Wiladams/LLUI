@@ -498,32 +498,26 @@ int epoll_wait (int __epfd, struct epoll_event *__events, int __maxevents, int _
 ]]
 
 
-local EpollConstants = {
-    EPOLL_CLOEXEC = F.octal('02000000');
-	EPOLLIN 	= 0x0001;
-	EPOLLPRI 	= 0x0002;
-	EPOLLOUT 	= 0x0004;
-	EPOLLRDNORM = 0x0040;			-- SAME AS EPOLLIN
-	EPOLLRDBAND = 0x0080;
-	EPOLLWRNORM = 0x0100;			-- SAME AS EPOLLOUT
-	EPOLLWRBAND = 0x0200;
-	EPOLLMSG	= 0x0400;			-- NOT USED
-	EPOLLERR 	= 0x0008;
-	EPOLLHUP 	= 0x0010;
-	EPOLLRDHUP 	= 0x2000;
-	EPOLLWAKEUP = lshift(1,29);
-	EPOLLONESHOT = lshift(1,30);
-	EPOLLET 	= lshift(1,31);
-
-
-
+C.EPOLL_CLOEXEC = F.octal('02000000');
+C.EPOLLIN 	= 0x0001;
+C.EPOLLPRI 	= 0x0002;
+C.EPOLLOUT 	= 0x0004;
+C.EPOLLRDNORM = 0x0040;			-- SAME AS EPOLLIN
+C.EPOLLRDBAND = 0x0080;
+C.EPOLLWRNORM = 0x0100;			-- SAME AS EPOLLOUT
+C.EPOLLWRBAND = 0x0200;
+C.EPOLLMSG	= 0x0400;			-- NOT USED
+C.EPOLLERR 	= 0x0008;
+C.EPOLLHUP 	= 0x0010;
+C.EPOLLRDHUP 	= 0x2000;
+C.EPOLLWAKEUP = lshift(1,29);
+C.EPOLLONESHOT = lshift(1,30);
+C.EPOLLET 	= lshift(1,31);
 
 -- Valid opcodes ( "op" parameter ) to issue to epoll_ctl().
-	EPOLL_CTL_ADD =1;	-- Add a file descriptor to the interface.
-	EPOLL_CTL_DEL =2;	-- Remove a file descriptor from the interface.
-	EPOLL_CTL_MOD =3;	-- Change file descriptor epoll_event structure.
-}
-C.epoll = EpollConstants;
+C.EPOLL_CTL_ADD =1;	-- Add a file descriptor to the interface.
+C.EPOLL_CTL_DEL =2;	-- Remove a file descriptor from the interface.
+C.EPOLL_CTL_MOD =3;	-- Change file descriptor epoll_event structure.
 
 ffi.cdef[[
 typedef struct _epollset {
@@ -551,7 +545,7 @@ local epollset_mt = {
 
 	__index = {
 		add = function(self, fd, event)
-			local ret = ffi.C.epoll_ctl(self.epfd, EpollConstants.EPOLL_CTL_ADD, fd, event)
+			local ret = ffi.C.epoll_ctl(self.epfd, C.EPOLL_CTL_ADD, fd, event)
 
 			if ret > -1 then
 				return ret;
@@ -561,7 +555,7 @@ local epollset_mt = {
 		end,
 
 		delete = function(self, fd, event)
-			local ret = ffi.C.epoll_ctl(self.epfd, EpollConstants.EPOLL_CTL_DEL, fd, event)
+			local ret = ffi.C.epoll_ctl(self.epfd, C.EPOLL_CTL_DEL, fd, event)
 
 			if ret > -1 then
 				return ret;
@@ -571,7 +565,7 @@ local epollset_mt = {
 		end,
 
 		modify = function(self, fd, event)
-			local ret = ffi.C.epoll_ctl(self.epfd, EpollConstants.EPOLL_CTL_MOD, fd, event)
+			local ret = ffi.C.epoll_ctl(self.epfd, C.EPOLL_CTL_MOD, fd, event)
 			if ret > -1 then
 				return ret;
 			end
