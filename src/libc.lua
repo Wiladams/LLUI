@@ -384,7 +384,10 @@ local iodesc_mt = {
         setNonBlocking = function(self)
             local feature_on = ffi.new("int[1]",1)
             local ret = ffi.C.ioctl(self.fd, C.FIONBIO, feature_on)
+	    print("setNonBlocking: ", ret, ffi.errno())
+
             return ret == 0;
+
         end,
 
     };
@@ -520,12 +523,12 @@ C.EPOLL_CTL_DEL =2;	-- Remove a file descriptor from the interface.
 C.EPOLL_CTL_MOD =3;	-- Change file descriptor epoll_event structure.
 
 ffi.cdef[[
-typedef struct _epollset {
+struct epollset {
 	int epfd;		// epoll file descriptor
-} epollset;
+} ;
 ]]
 
-local epollset = ffi.typeof("epollset")
+local epollset = ffi.typeof("struct epollset")
 local epollset_mt = {
 	__new = function(ct, epfd)
 		if not epfd then
@@ -546,7 +549,7 @@ local epollset_mt = {
 	__index = {
 		add = function(self, fd, event)
 			local ret = ffi.C.epoll_ctl(self.epfd, C.EPOLL_CTL_ADD, fd, event)
-
+print("epollset.add(), fd,  event, ret: ", fd, event, ret, F.strerror());
 			if ret > -1 then
 				return ret;
 			end
@@ -768,7 +771,7 @@ C.O_CLOEXEC	= F.octal('02000000');	-- set close_on_exec
 
 function F.strerror(num)
 	num = num or ffi.errno();
-	return getNameOfValue(num, errnos)
+	return F.getNameOfValue(num, errnos)
 end
 
 

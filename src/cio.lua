@@ -21,7 +21,7 @@ function cio.init(self, fd)
     }
     setmetatable(obj, cio_mt);
 
-    obj.fdesc:setNonBlocking(true);
+    --obj.fdesc:setNonBlocking(true);
 
     obj.WatchdogEvent = ffi.new("struct epoll_event")
     obj.WatchdogEvent.data.ptr = obj.fdesc;
