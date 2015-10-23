@@ -1,3 +1,8 @@
+--[[
+References:
+    https://www.safaribooksonline.com/library/view/linux-system-programming/9781449341527/ch04.html
+--]]
+
 local ffi = require("ffi")
 local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
@@ -21,16 +26,18 @@ function cio.init(self, fd)
     }
     setmetatable(obj, cio_mt);
 
+print("cio.init(), obj.fdesc(fd): ", obj.fdesc.fd)
+
     --obj.fdesc:setNonBlocking(true);
 
     obj.WatchdogEvent = ffi.new("struct epoll_event")
     obj.WatchdogEvent.data.ptr = obj.fdesc;
-    obj.WatchdogEvent.events = bor(libc.EPOLLOUT,libc.EPOLLIN, libc.EPOLLRDHUP, libc.EPOLLERR, libc.EPOLLET);
+    obj.WatchdogEvent.events = bor(libc.EPOLLERR, libc.EPOLLET, libc.EPOLLRDHUP, libc.EPOLLOUT,libc.EPOLLIN);
 
     -- assumes kernel is already running
     -- tell the system we're interested in 
     -- monitoring this file descriptor
-    print("cio.init() ", watchForIOEvents(obj.fdesc, obj.WatchdogEvent));
+    obj.supportsEpoll = watchForIOEvents(obj.fdesc, obj.WatchdogEvent);
 
 
     -- create a couple more event kinds so that we can 
@@ -63,102 +70,59 @@ local int = ffi.typeof("int")
 function cio.open(self, filename, flags, extra)
     extra = extra or int(0);
     local fd = libc.open(filename, flags, extra);
-print("cio.open() - ", fd);
+--print("cio.open() - ", fd);
     return self:init(fd);
 end
 
---[[
-function cio.setSocketOption(self, optname, on, level)
-    local feature_on = ffi.new("int[1]")
-    if on then feature_on[0] = 1; end
-    level = level or linux.SOL_SOCKET 
-
-    local ret = ffi.C.setsockopt(self.fdesc.fd, level, optname, feature_on, ffi.sizeof("int"))
-    return ret == 0;
-end
-
-function AsyncSocket.setNonBlocking(self, on)
-    return self.fdesc:setNonBlocking(on);
-end
-
-function AsyncSocket.setUseKeepAlive(self, on)
-    return self:setSocketOption(linux.SO_KEEPALIVE, on);
-end
-
-function AsyncSocket.setReuseAddress(self, on)
-    return self:setSocketOption(linux.SO_REUSEADDR, on);
-end
-
-function AsyncSocket.getLastError(self)
-    local retVal = ffi.new("int[1]")
-    local retValLen = ffi.new("int[1]", ffi.sizeof("int"))
-
-    local ret = self:getSocketOption(linux.SO_ERROR, retVal, retValLen)
-
-    return retVal[0];
-end
-
-function AsyncSocket.connect(self, servername, port)
-    local sa, size = lookupsite(servername);
-    if not sa then 
-        return false, size;
-    end
-    ffi.cast("struct sockaddr_in *", sa):setPort(port);
-
-    local ret = tonumber(ffi.C.connect(self.fdesc.fd, sa, size));
-
-    local err = ffi.errno();
-    if ret ~= 0 then
-        if  err ~= errnos.EINPROGRESS then
-            return false, err;
-        end
-    end
-
-
-    -- now wait for the socket to be writable
-    local success, err = asyncio:waitForIOEvent(self.fdesc, self.ConnectEvent);
-
-    return success, err;
-end
---]]
-
 function cio.read(self, buff, bufflen)
     
-    local success, err = waitForIOEvent(self.fdesc, self.ReadEvent);
-    
-    --print(string.format("AsyncSocket.read(), after wait: 0x%x %s", success, tostring(err)))
-
-   if not success then
-        print("cio.read(), FAILED WAITING: ", string.format("0x%x",err))
-        return false, err;
-    end
-
+    local success = true;
     local bytesRead = 0;
+    local err = nil;
 
-    if band(success, epoll.EPOLLIN) > 0 then
+    if self.supportsEpoll then
+        local success, err = waitForIOEvent(self.fdesc, self.ReadEvent);
+    
+        --print(string.format("AsyncSocket.read(), after wait: 0x%x %s", success, tostring(err)))
+
+        if not success then
+            print("cio.read(), FAILED WAITING: ", string.format("0x%x",err))
+            return false, err;
+        end
+
+        if band(success, epoll.EPOLLIN) > 0 then
+            bytesRead, err = self.fdesc:read(buff, bufflen);
+            --print("async_read(), bytes read: ", bytesRead, err)
+        end
+    else
         bytesRead, err = self.fdesc:read(buff, bufflen);
-        --print("async_read(), bytes read: ", bytesRead, err)
+        --print("cio.read(NO EPOLL), bytes read: ", bytesRead, err)
     end
     
     return bytesRead, err;
 end
 
 function cio.write(self, buff, bufflen)
+    local success = false;
+    local err = nil;
+    local bytesTransferred = 0;
 
-  local success, err = waitForIOEvent(self.fdesc, self.WriteEvent);
-  --print(string.format("async_write, after wait: 0x%x %s", success, tostring(err)))
-  if not success then
-    return false, err;
-  end
+    if self.supportsEpoll then
+        local success, err = waitForIOEvent(self.fdesc, self.WriteEvent);
+        --print(string.format("async_write, after wait: 0x%x %s", success, tostring(err)))
+        if not success then
+            return false, err;
+        end
   
-  local bytes = 0;
+        if band(success, epoll.EPOLLOUT) > 0 then
+            bytesTransferred, err = self.fdesc:write(buff, bufflen);
+            --print("async_write(), bytes: ", bytes, err)
+        end
+    else
+        bytesTransferred, err = self.fdesc:write(buff, bufflen);
+    end
 
-  if band(success, epoll.EPOLLOUT) > 0 then
-    bytes, err = self.fdesc:write(buff, bufflen);
-    --print("async_write(), bytes: ", bytes, err)
-  end
-
-  return bytes, err;
+    return bytesTransferred, err;
 end
 
 function cio.close(self)

@@ -332,6 +332,9 @@ struct ioevent {
 C.IO_READ = 1;
 C.IO_WRITE = 2;
 C.IO_CONNECT = 3;
+C.STDIN_FILENO = 0;
+C.STDOUT_FILENO = 1;
+C.STDERR_FILENO = 2;
 
 local iodesc = ffi.typeof("struct iodesc")
 local iodesc_mt = {
@@ -533,6 +536,7 @@ local epollset_mt = {
 	__new = function(ct, epfd)
 		if not epfd then
 			epfd = ffi.C.epoll_create1(0);
+			print("epollset.__new(): ", epfd)
 		end
 
 		if epfd < 0 then
