@@ -68,6 +68,8 @@ function UDVMonitor.events(self)
 	local function event_gen(param, state)
 		local dev_handle = nil;
 		repeat 
+			-- wait for activity on file descriptor
+			-- then receive_device
 			dev_handle = udev.udev_monitor_receive_device(param.Handle)
 		until dev_handle ~= nil;
 
